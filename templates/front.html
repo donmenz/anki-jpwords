@@ -1,0 +1,65 @@
+<div id="anki-card">
+  <div class="card-head"><span>{{Level}} · {{ID}}</span><span id="progress">1 / 3</span></div>
+  <main id="card-area" aria-label="点击空白处进入下一阶段">
+    <section class="stage active" id="stage-1">
+      <div class="cue-icon">🔊</div>
+      <p class="cue-title">先听两遍</p>
+      <p class="cue-copy">不看文字，辨认目标词</p>
+      <div class="anki-audio big-audio" id="sentence-x2-player">{{SentenceAudioX2}}</div>
+      <p class="sound-label">播放例句两遍</p>
+    </section>
+    <section class="stage" id="stage-2">
+      <button class="sentence-button audio-target" id="sentence-once" type="button" aria-label="播放例句一遍">
+        <p class="sentence-ja">{{SentenceJa}}</p>
+        <div class="sentence-speaker">🔊</div>
+        <p class="sound-label">点击例句重听一遍</p>
+      </button>
+      <audio id="sentence-once-audio" preload="none" src="{{ID}}_sentence_x1.mp3"></audio>
+      <p class="stage-hint">再点空白处查看单词</p>
+    </section>
+    <section class="stage" id="stage-3">
+      <button class="word-block audio-target" id="word-once" type="button" aria-label="播放单词两遍">
+        <div class="reading">{{Reading}}</div>
+        <div class="word-row"><span class="word">{{Word}}</span></div>
+        <div class="pos">{{PartOfSpeech}}</div>
+        <p class="meaning">{{MeaningZh}}</p>
+        <p class="interaction-hint">点击词块播放</p>
+      </button>
+      <div class="divider"></div>
+      <button class="answer-sentence audio-target" id="answer-sentence" type="button" aria-label="播放例句">
+        <p class="sentence-ja">{{SentenceJa}}</p>
+        <p class="sentence-zh">{{SentenceZhReviewed}}</p>
+        <p class="interaction-hint">点击例句播放</p>
+      </button>
+      <p class="fallback-answer">若未出现评分按钮，请按空格显示答案。</p>
+    </section>
+  </main>
+  <div class="bottom-note">语音：Edge TTS · Nanami · 0.90×</div>
+</div>
+<script>
+(() => {
+  const area = document.getElementById('card-area');
+  const progress = document.getElementById('progress');
+  const onceAudio = document.getElementById('sentence-once-audio');
+  let stage = 1;
+  const show = (number) => {
+    stage = number;
+    document.querySelectorAll('.stage').forEach((node) => node.classList.toggle('active', node.id === `stage-${number}`));
+    progress.textContent = `${number} / 3`;
+  };
+  document.getElementById('sentence-once').addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (onceAudio) { onceAudio.currentTime = 0; onceAudio.play(); }
+  });
+  document.getElementById('word-once').addEventListener('click', (event) => { event.stopPropagation(); });
+  document.getElementById('answer-sentence').addEventListener('click', (event) => { event.stopPropagation(); });
+  area.addEventListener('click', (event) => {
+    if (event.target.closest('button, a, .anki-audio, .audio-target')) return;
+    if (stage === 1) { show(2); return; }
+    if (stage === 2) {
+      if (typeof pycmd === 'function') { pycmd('ans'); }
+      else { show(3); }
+    }
+  });
+})();
+</script>

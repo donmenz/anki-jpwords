@@ -1,0 +1,30 @@
+<div id="anki-card">
+  <div class="card-head"><span>{{Level}} · {{ID}}</span><span>3 / 3</span></div>
+  <main id="card-area">
+    <section class="stage active">
+      <button class="word-block" id="word-once" type="button" aria-label="播放单词两遍">
+        <div class="reading">{{Reading}}</div>
+        <div class="word-row"><span class="word">{{Word}}</span></div>
+        <div class="pos">{{PartOfSpeech}}</div>
+        <p class="meaning">{{MeaningZh}}</p>
+        <p class="interaction-hint">点击词块播放</p>
+      </button>
+      <div class="anki-audio audio-driver" id="word-x2-player">{{WordAudioX2}}</div>
+      <div class="divider"></div>
+      <button class="answer-sentence" id="answer-sentence" type="button" aria-label="播放例句">
+        <p class="sentence-ja">{{SentenceJa}}</p>
+        <p class="sentence-zh">{{SentenceZhReviewed}}</p>
+        <p class="interaction-hint">点击例句播放</p>
+      </button>
+      <div class="anki-audio audio-driver" id="sentence-x1-player">{{SentenceAudioX1}}</div>
+    </section>
+  </main>
+  <div class="bottom-note">语音：Edge TTS · Nanami · 0.90×</div>
+</div>
+<script>
+(() => {
+  const replay = (root) => { const button = root.querySelector('.replay-button'); if (button) button.click(); };
+  document.getElementById('word-once').addEventListener('click', () => replay(document.getElementById('word-x2-player')));
+  document.getElementById('answer-sentence').addEventListener('click', () => replay(document.getElementById('sentence-x1-player')));
+})();
+</script>

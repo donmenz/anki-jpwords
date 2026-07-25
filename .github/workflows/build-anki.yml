@@ -1,0 +1,51 @@
+name: Build Anki APKG
+
+on:
+  push:
+    branches: [anki-jpwords]
+    paths:
+      - "data/**"
+      - "templates/**"
+      - "scripts/**"
+      - "requirements.txt"
+      - ".github/workflows/build-anki.yml"
+  pull_request:
+    paths:
+      - "data/**"
+      - "templates/**"
+      - "scripts/**"
+      - "requirements.txt"
+      - ".github/workflows/build-anki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Build APKG and synthesize audio
+        run: python scripts/build_apkg.py
+      - name: Validate package
+        run: python scripts/validate_apkg.py "dist/无敌绿宝书-N3-0125至0174.apkg"
+      - name: Upload APKG
+        uses: actions/upload-artifact@v4
+        with:
+          name: n3-0125-0174-apkg
+          path: "dist/无敌绿宝书-N3-0125至0174.apkg"
+          retention-days: 7
+          if-no-files-found: error

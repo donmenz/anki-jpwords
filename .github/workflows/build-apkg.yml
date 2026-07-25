@@ -1,0 +1,48 @@
+name: Build APKG
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'data/**'
+      - 'templates/**'
+      - 'scripts/**'
+      - 'requirements.txt'
+      - '.github/workflows/build-apkg.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+
+      - name: Build APKG
+        run: python scripts/build_apkg.py
+
+      - name: Validate APKG
+        run: python scripts/validate_apkg.py 'dist/无敌绿宝书-N3-0125至0174.apkg'
+
+      - name: Upload APKG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: n3-0125-0174-apkg
+          path: dist/*.apkg
+          retention-days: 7
+          if-no-files-found: error

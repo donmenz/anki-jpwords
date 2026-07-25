@@ -1,0 +1,87 @@
+.card {
+  margin: 0;
+  padding: 0;
+  background: #e5dfd3;
+  color: #28344b;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "PingFang SC", sans-serif;
+  font-size: 18px;
+  text-align: center;
+}
+#anki-card {
+  box-sizing: border-box;
+  width: min(100%, 520px);
+  min-height: 640px;
+  margin: 0 auto;
+  padding: 26px 25px 22px;
+  border-radius: 28px;
+  background: #faf5eb;
+  box-shadow: 0 15px 46px rgba(66, 54, 37, .16);
+}
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  color: #706b63;
+  font-size: 16px;
+  letter-spacing: .06em;
+}
+#card-area { min-height: 475px; cursor: pointer; }
+.stage { display: none; min-height: 475px; }
+.stage.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.cue-icon { color: #b9583d; font-size: 48px; line-height: 1; }
+.cue-title { margin: 18px 0 8px; font-size: 22px; font-weight: 650; }
+.cue-copy, .stage-hint { margin: 0; color: #79736a; font-size: 16px; }
+.sound-button, .sentence-button, .word-block, .answer-sentence {
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.anki-audio { margin: 17px 0 6px; }
+.anki-audio .replay-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  min-height: 52px;
+  border-radius: 50%;
+  background: #f0e7d9;
+}
+.anki-audio .replay-button svg { width: 30px; height: 30px; }
+.big-audio .replay-button { min-width: 92px; min-height: 92px; }
+.big-audio .replay-button svg { width: 46px; height: 46px; }
+.sound-button {
+  width: 92px;
+  height: 92px;
+  margin: 16px 0 8px;
+  border-radius: 50%;
+  background: #f0e7d9;
+  color: #b9583d;
+  font-size: 43px;
+}
+.sound-label { color: #b9583d; font-size: 16px; font-weight: 650; }
+.sentence-button {
+  width: 100%;
+  padding: 25px 12px;
+  border-radius: 18px;
+  background: transparent;
+}
+.sentence-ja { margin: 0; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-size: clamp(30px, 7vw, 42px); line-height: 1.62; }
+.sentence-speaker { margin: 22px 0 9px; color: #b9583d; font-size: 42px; }
+.stage-hint { margin-top: 34px; }
+.word-block { width: 100%; padding: 20px 8px 22px; border-radius: 19px; background: transparent; }
+.reading { color: #b9583d; font-size: clamp(28px, 7vw, 34px); font-weight: 700; letter-spacing: .30em; }
+.word-row { display: flex; align-items: center; justify-content: center; margin: 11px 0 21px; min-width: 0; }
+.word { max-width: 100%; overflow: hidden; font-family: "Hiragino Mincho ProN", "Yu Mincho", serif; font-size: clamp(48px, 11vw, 72px); line-height: 1.05; white-space: nowrap; text-overflow: clip; }
+.pos { color: #77736d; font-size: 17px; }
+.meaning { margin: 13px 0 0; font-size: 22px; font-weight: 650; }
+.divider { width: 52px; height: 1px; margin: 12px auto 20px; background: #d6cdbc; }
+.answer-sentence { width: 100%; padding: 16px 8px; border-radius: 14px; background: transparent; }
+.answer-sentence .sentence-ja { font-size: clamp(24px, 6vw, 32px); line-height: 1.55; }
+.sentence-zh { margin: 15px 0 0; color: #77736d; font-size: 18px; line-height: 1.5; }
+.interaction-hint { margin: 10px 0 0; color: #b9583d; font-size: 15px; font-weight: 650; }
+.audio-driver { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; opacity: 0; pointer-events: none; }
+.bottom-note { border-top: 1px solid #d9cfbf; padding-top: 16px; color: #77736d; font-size: 14px; letter-spacing: .04em; }
+.fallback-answer { margin-top: 24px; color: #77736d; font-size: 14px; }
+button:active { transform: scale(.98); }
+@media (max-width: 420px) { #anki-card { min-height: 600px; border-radius: 22px; padding: 21px 18px 17px; } #card-area, .stage { min-height: 440px; } }
