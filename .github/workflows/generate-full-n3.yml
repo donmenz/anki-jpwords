@@ -39,8 +39,8 @@ jobs:
   validate-wordlist:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - run: python scripts/validate_wordlist.py
@@ -92,9 +92,9 @@ jobs:
           echo "output_dir=$output_dir" >> "$GITHUB_OUTPUT"
           echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
           echo "arguments=$arguments" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: ${{ steps.plan.outputs.should_run == 'true' }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         if: ${{ steps.plan.outputs.should_run == 'true' }}
         with:
           python-version: "3.12"
@@ -108,7 +108,7 @@ jobs:
           pip install -r requirements.txt
       - name: Restore completed audio shard
         if: ${{ steps.plan.outputs.should_run == 'true' }}
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ steps.plan.outputs.output_dir }}
           key: n3-audio-v1-${{ hashFiles('data/n3/wordlist.json') }}-${{ steps.plan.outputs.mode }}-${{ matrix.shard }}-${{ steps.plan.outputs.sample_size }}
@@ -131,7 +131,7 @@ jobs:
           --workers 8
       - name: Upload audio shard
         if: ${{ steps.plan.outputs.should_run == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.plan.outputs.artifact_name }}
           path: ${{ steps.plan.outputs.output_dir }}
@@ -145,8 +145,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -155,7 +155,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Download all audio shards
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: n3-audio-shard-*
           path: build/full-audio
@@ -173,7 +173,7 @@ jobs:
       - name: Validate complete APKG
         run: python scripts/validate_full_apkg.py "dist/无敌绿宝书-N3-0001至3256.apkg"
       - name: Upload complete APKG
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: n3-0001-3256-apkg
           path: "dist/无敌绿宝书-N3-0001至3256.apkg"
