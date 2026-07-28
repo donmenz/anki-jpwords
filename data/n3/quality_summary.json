@@ -1,0 +1,97 @@
+{
+  "total_rows": 3256,
+  "first_id": "n3_0001",
+  "last_id": "n3_3256",
+  "ids_continuous": true,
+  "units": {
+    "1": 109,
+    "2": 124,
+    "3": 134,
+    "4": 91,
+    "5": 156,
+    "6": 162,
+    "7": 91,
+    "8": 116,
+    "9": 90,
+    "10": 127,
+    "11": 68,
+    "12": 122,
+    "13": 80,
+    "14": 119,
+    "15": 87,
+    "16": 123,
+    "17": 95,
+    "18": 91,
+    "19": 85,
+    "20": 131,
+    "21": 83,
+    "22": 92,
+    "23": 102,
+    "24": 122,
+    "25": 55,
+    "26": 121,
+    "27": 92,
+    "28": 129,
+    "29": 92,
+    "30": 19,
+    "31": 148
+  },
+  "translation_statuses": {
+    "unchanged": 58,
+    "corrected": 25,
+    "wording_refined": 36,
+    "tatoeba_parallel": 1968,
+    "tatoeba_via_english": 601,
+    "source_ocr": 246,
+    "manual_source_correction": 67,
+    "generated_example": 255
+  },
+  "review_statuses": {
+    "已人工校正": 186,
+    "已自动校验": 1968,
+    "间接译例待抽样复核": 601,
+    "原书例句待抽样复核": 246,
+    "生成例句待复核": 255
+  },
+  "lexical_review_statuses": {
+    "已人工校正": 412,
+    "OCR 词条待抽样复核": 2844
+  },
+  "example_sources": {
+    "原书": 432,
+    "Tatoeba 日中直译语料": 1968,
+    "Tatoeba 日英中间接语料": 601,
+    "人工生成例句": 255
+  },
+  "manual_header_or_meaning_corrections": 288,
+  "batches": [
+    {
+      "batch": "batch_01_unit_01_08",
+      "units": "1-8",
+      "rows": 983,
+      "first_id": "n3_0001",
+      "last_id": "n3_0983"
+    },
+    {
+      "batch": "batch_02_unit_09_16",
+      "units": "9-16",
+      "rows": 816,
+      "first_id": "n3_0984",
+      "last_id": "n3_1799"
+    },
+    {
+      "batch": "batch_03_unit_17_24",
+      "units": "17-24",
+      "rows": 801,
+      "first_id": "n3_1800",
+      "last_id": "n3_2600"
+    },
+    {
+      "batch": "batch_04_unit_25_31",
+      "units": "25-31",
+      "rows": 656,
+      "first_id": "n3_2601",
+      "last_id": "n3_3256"
+    }
+  ]
+}
