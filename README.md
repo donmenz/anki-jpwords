@@ -49,6 +49,33 @@ python scripts/validate_wordlist.py
 The validator checks row count, continuous IDs, required fields, placeholder
 sentences, and the four batch boundaries.
 
+## Generate the complete audio deck on GitHub
+
+The `Generate Full N3 Audio` workflow is deliberately manual for full runs.
+It does not commit generated MP3 files to Git. Audio is split into 16 resumable
+shards, with at most four shards running in parallel.
+
+1. Open the repository's **Actions** tab.
+2. Select **Generate Full N3 Audio**.
+3. Choose **Run workflow** on `main`.
+4. Run `sample` first (the default, eight cards).
+5. After the sample artifact is checked, run again with mode `full`.
+6. Download the `n3-0001-3256-apkg` artifact after all jobs finish.
+
+Each card produces three 24 kHz mono MP3 files:
+
+- word played twice
+- sentence played once
+- sentence played twice
+
+The complete run validates all 9,768 MP3 files, builds the 3,256-card APKG,
+and validates its notes, cards, IDs, and media table. Successful shards are
+cached, so a later rerun can reuse completed audio for the same wordlist.
+
+Generated artifacts are retained for 14 days. The workflow uses Microsoft
+Edge TTS (`ja-JP-NanamiNeural`, rate `-10%`) and therefore requires outbound
+network access from the GitHub runner.
+
 ## Legacy 50-card Anki build
 
 The earlier `n3_0125`–`n3_0174` build remains available for reference:

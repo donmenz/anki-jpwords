@@ -1,14 +1,7 @@
-name: Build APKG
+name: Build Legacy 50-card APKG
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'data/**'
-      - 'templates/**'
-      - 'scripts/**'
-      - 'requirements.txt'
-      - '.github/workflows/build-apkg.yml'
 
 permissions:
   contents: read
@@ -19,10 +12,10 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
@@ -40,7 +33,7 @@ jobs:
         run: python scripts/validate_apkg.py 'dist/无敌绿宝书-N3-0125至0174.apkg'
 
       - name: Upload APKG artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: n3-0125-0174-apkg
           path: dist/*.apkg
