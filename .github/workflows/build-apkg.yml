@@ -1,14 +1,7 @@
-name: Build APKG
+name: Build Legacy 50-card APKG
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'data/**'
-      - 'templates/**'
-      - 'scripts/**'
-      - 'requirements.txt'
-      - '.github/workflows/build-apkg.yml'
 
 permissions:
   contents: read

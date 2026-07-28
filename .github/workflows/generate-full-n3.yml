@@ -1,0 +1,182 @@
+name: Generate Full N3 Audio
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Generate a small sample or the complete deck
+        required: true
+        type: choice
+        default: sample
+        options:
+          - sample
+          - full
+      sample_size:
+        description: Number of cards when mode is sample
+        required: true
+        type: string
+        default: "8"
+  pull_request:
+    paths:
+      - "data/n3/**"
+      - "templates/**"
+      - "scripts/n3_audio_common.py"
+      - "scripts/generate_n3_audio.py"
+      - "scripts/validate_n3_audio.py"
+      - "scripts/build_full_apkg.py"
+      - "scripts/validate_full_apkg.py"
+      - "requirements.txt"
+      - ".github/workflows/generate-full-n3.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-n3-audio-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-wordlist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/validate_wordlist.py
+
+  generate-audio:
+    needs: validate-wordlist
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Plan shard
+        id: plan
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_MODE: ${{ inputs.mode }}
+          REQUESTED_SAMPLE_SIZE: ${{ inputs.sample_size }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            mode="sample"
+            sample_size="4"
+          else
+            mode="${REQUESTED_MODE:-sample}"
+            sample_size="${REQUESTED_SAMPLE_SIZE:-8}"
+          fi
+          if ! [[ "$sample_size" =~ ^[0-9]+$ ]] || (( sample_size < 1 || sample_size > 100 )); then
+            echo "sample_size must be an integer from 1 through 100" >&2
+            exit 1
+          fi
+          if [[ "$mode" == "full" ]]; then
+            should_run="true"
+            output_dir="build/audio-shard-${SHARD}"
+            artifact_name="n3-audio-shard-$(printf '%02d' "$SHARD")"
+            arguments="--shard-index $SHARD --shard-count 16"
+          else
+            if [[ "$SHARD" == "0" ]]; then should_run="true"; else should_run="false"; fi
+            output_dir="build/audio-sample"
+            artifact_name="n3-audio-sample"
+            arguments="--shard-index 0 --shard-count 1 --limit $sample_size"
+          fi
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "sample_size=$sample_size" >> "$GITHUB_OUTPUT"
+          echo "output_dir=$output_dir" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+          echo "arguments=$arguments" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        if: ${{ steps.plan.outputs.should_run == 'true' }}
+      - uses: actions/setup-python@v5
+        if: ${{ steps.plan.outputs.should_run == 'true' }}
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install FFmpeg and Python dependencies
+        if: ${{ steps.plan.outputs.should_run == 'true' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Restore completed audio shard
+        if: ${{ steps.plan.outputs.should_run == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.plan.outputs.output_dir }}
+          key: n3-audio-v1-${{ hashFiles('data/n3/wordlist.json') }}-${{ steps.plan.outputs.mode }}-${{ matrix.shard }}-${{ steps.plan.outputs.sample_size }}
+      - name: Generate audio
+        if: ${{ steps.plan.outputs.should_run == 'true' }}
+        run: >-
+          python scripts/generate_n3_audio.py
+          --input data/n3/wordlist.json
+          --output-dir "${{ steps.plan.outputs.output_dir }}"
+          ${{ steps.plan.outputs.arguments }}
+          --concurrency 1
+          --retries 5
+      - name: Validate every MP3
+        if: ${{ steps.plan.outputs.should_run == 'true' }}
+        run: >-
+          python scripts/validate_n3_audio.py
+          --input data/n3/wordlist.json
+          --audio-dir "${{ steps.plan.outputs.output_dir }}"
+          ${{ steps.plan.outputs.arguments }}
+          --workers 8
+      - name: Upload audio shard
+        if: ${{ steps.plan.outputs.should_run == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.plan.outputs.artifact_name }}
+          path: ${{ steps.plan.outputs.output_dir }}
+          retention-days: 14
+          compression-level: 0
+          if-no-files-found: error
+
+  build-package:
+    needs: generate-audio
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'full' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Download all audio shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: n3-audio-shard-*
+          path: build/full-audio
+          merge-multiple: true
+      - name: Check the complete media set
+        run: |
+          test "$(find build/full-audio -type f -name '*.mp3' | wc -l | tr -d ' ')" = "9768"
+          test "$(find build/full-audio -type f -name 'audio_manifest_shard_*.json' | wc -l | tr -d ' ')" = "16"
+      - name: Build complete APKG
+        run: >-
+          python scripts/build_full_apkg.py
+          --input data/n3/wordlist.json
+          --audio-dir build/full-audio
+          --output "dist/无敌绿宝书-N3-0001至3256.apkg"
+      - name: Validate complete APKG
+        run: python scripts/validate_full_apkg.py "dist/无敌绿宝书-N3-0001至3256.apkg"
+      - name: Upload complete APKG
+        uses: actions/upload-artifact@v4
+        with:
+          name: n3-0001-3256-apkg
+          path: "dist/无敌绿宝书-N3-0001至3256.apkg"
+          retention-days: 14
+          compression-level: 0
+          if-no-files-found: error
