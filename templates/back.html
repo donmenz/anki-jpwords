@@ -10,6 +10,7 @@
         <p class="interaction-hint">点击词块播放</p>
       </button>
       <div class="anki-audio audio-driver" id="word-x2-player">{{WordAudioX2}}</div>
+      {{#SentenceJa}}
       <div class="divider"></div>
       <button class="answer-sentence" id="answer-sentence" type="button" aria-label="播放例句">
         <p class="sentence-ja">{{SentenceJa}}</p>
@@ -17,14 +18,17 @@
         <p class="interaction-hint">点击例句播放</p>
       </button>
       <div class="anki-audio audio-driver" id="sentence-x1-player">{{SentenceAudioX1}}</div>
+      {{/SentenceJa}}
+      {{^SentenceJa}}<p class="no-example">第32单元原书未提供例句</p>{{/SentenceJa}}
     </section>
   </main>
-  <div class="bottom-note">语音：Edge TTS · Nanami · 0.90×</div>
+  <div class="bottom-note">语音：Edge TTS · Nanami · 0.90× · 音量增强</div>
 </div>
 <script>
 (() => {
-  const replay = (root) => { const button = root.querySelector('.replay-button'); if (button) button.click(); };
+  const replay = (root) => { const button = root && root.querySelector('.replay-button'); if (button) button.click(); };
   document.getElementById('word-once').addEventListener('click', () => replay(document.getElementById('word-x2-player')));
-  document.getElementById('answer-sentence').addEventListener('click', () => replay(document.getElementById('sentence-x1-player')));
+  const answerSentence = document.getElementById('answer-sentence');
+  if (answerSentence) answerSentence.addEventListener('click', () => replay(document.getElementById('sentence-x1-player')));
 })();
 </script>

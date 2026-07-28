@@ -111,7 +111,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ steps.plan.outputs.output_dir }}
-          key: n3-audio-v1-${{ hashFiles('data/n3/wordlist.json') }}-${{ steps.plan.outputs.mode }}-${{ matrix.shard }}-${{ steps.plan.outputs.sample_size }}
+          key: n3-clean-pdf-edge-v2-${{ hashFiles('data/n3/wordlist.json') }}-${{ steps.plan.outputs.mode }}-${{ matrix.shard }}-${{ steps.plan.outputs.sample_size }}
       - name: Generate audio
         if: ${{ steps.plan.outputs.should_run == 'true' }}
         run: >-
@@ -162,21 +162,21 @@ jobs:
           merge-multiple: true
       - name: Check the complete media set
         run: |
-          test "$(find build/full-audio -type f -name '*.mp3' | wc -l | tr -d ' ')" = "9768"
+          test "$(find build/full-audio -type f -name '*.mp3' | wc -l | tr -d ' ')" = "10200"
           test "$(find build/full-audio -type f -name 'audio_manifest_shard_*.json' | wc -l | tr -d ' ')" = "16"
       - name: Build complete APKG
         run: >-
           python scripts/build_full_apkg.py
           --input data/n3/wordlist.json
           --audio-dir build/full-audio
-          --output "dist/无敌绿宝书-N3-0001至3256.apkg"
+          --output "dist/无敌绿宝书-N3-3400词-EdgeTTS.apkg"
       - name: Validate complete APKG
-        run: python scripts/validate_full_apkg.py "dist/无敌绿宝书-N3-0001至3256.apkg"
+        run: python scripts/validate_full_apkg.py "dist/无敌绿宝书-N3-3400词-EdgeTTS.apkg"
       - name: Upload complete APKG
         uses: actions/upload-artifact@v7
         with:
-          name: n3-0001-3256-apkg
-          path: "dist/无敌绿宝书-N3-0001至3256.apkg"
+          name: n3-0001-3400-edge-tts-apkg
+          path: "dist/无敌绿宝书-N3-3400词-EdgeTTS.apkg"
           retention-days: 14
           compression-level: 0
           if-no-files-found: error

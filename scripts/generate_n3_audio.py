@@ -13,7 +13,13 @@ from pathlib import Path
 
 import edge_tts
 
-from n3_audio_common import audio_names, load_wordlist, select_shard
+from n3_audio_common import (
+    audio_names,
+    load_wordlist,
+    select_shard,
+    sentence_audio_text,
+    word_audio_text,
+)
 
 
 VOICE = "ja-JP-NanamiNeural"
@@ -94,10 +100,6 @@ async def make_double(single: Path, output: Path) -> None:
     os.replace(temporary, output)
 
 
-def word_audio_text(row: dict[str, object]) -> str:
-    return str(row["reading"]).replace("・", "、").replace("／", "、")
-
-
 async def generate_card(
     row: dict[str, object],
     output_dir: Path,
@@ -119,7 +121,7 @@ async def generate_card(
         if not valid_audio(word_x2):
             await synthesize(word_audio_text(row), word_x1, retries)
             await make_double(word_x1, word_x2)
-        await synthesize(str(row["sentence_ja"]), sentence_x1, retries)
+        await synthesize(sentence_audio_text(row), sentence_x1, retries)
         await make_double(sentence_x1, sentence_x2)
         word_x1.unlink(missing_ok=True)
 

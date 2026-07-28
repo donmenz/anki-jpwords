@@ -30,7 +30,7 @@
 .cue-icon { color: #b9583d; font-size: 48px; line-height: 1; }
 .cue-title { margin: 18px 0 8px; font-size: 22px; font-weight: 650; }
 .cue-copy, .stage-hint { margin: 0; color: #79736a; font-size: 16px; }
-.sound-button, .sentence-button, .word-block, .answer-sentence {
+.sentence-button, .word-block, .answer-sentence {
   border: 0;
   color: inherit;
   font: inherit;
@@ -50,15 +50,6 @@
 .anki-audio .replay-button svg { width: 30px; height: 30px; }
 .big-audio .replay-button { min-width: 92px; min-height: 92px; }
 .big-audio .replay-button svg { width: 46px; height: 46px; }
-.sound-button {
-  width: 92px;
-  height: 92px;
-  margin: 16px 0 8px;
-  border-radius: 50%;
-  background: #f0e7d9;
-  color: #b9583d;
-  font-size: 43px;
-}
 .sound-label { color: #b9583d; font-size: 16px; font-weight: 650; }
 .sentence-button {
   width: 100%;
@@ -83,5 +74,6 @@
 .audio-driver { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; opacity: 0; pointer-events: none; }
 .bottom-note { border-top: 1px solid #d9cfbf; padding-top: 16px; color: #77736d; font-size: 14px; letter-spacing: .04em; }
 .fallback-answer { margin-top: 24px; color: #77736d; font-size: 14px; }
+.no-example { margin: 18px 0; color: #77736d; font-size: 19px; line-height: 1.6; }
 button:active { transform: scale(.98); }
 @media (max-width: 420px) { #anki-card { min-height: 600px; border-radius: 22px; padding: 21px 18px 17px; } #card-area, .stage { min-height: 440px; } }

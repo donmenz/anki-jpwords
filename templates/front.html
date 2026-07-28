@@ -6,13 +6,15 @@
       <p class="cue-title">先听两遍</p>
       <p class="cue-copy">不看文字，辨认目标词</p>
       <div class="anki-audio big-audio" id="sentence-x2-player">{{SentenceAudioX2}}</div>
-      <p class="sound-label">播放例句两遍</p>
+      {{#SentenceJa}}<p class="sound-label">播放原书例句两遍</p>{{/SentenceJa}}
+      {{^SentenceJa}}<p class="sound-label">播放原书单词两遍</p>{{/SentenceJa}}
     </section>
     <section class="stage" id="stage-2">
-      <button class="sentence-button audio-target" id="sentence-once" type="button" aria-label="播放例句一遍">
-        <p class="sentence-ja">{{SentenceJa}}</p>
+      <button class="sentence-button audio-target" id="sentence-once" type="button" aria-label="播放原声一遍">
+        {{#SentenceJa}}<p class="sentence-ja">{{SentenceJa}}</p>{{/SentenceJa}}
+        {{^SentenceJa}}<p class="no-example">第32单元原书未提供例句<br>点击重听单词</p>{{/SentenceJa}}
         <div class="sentence-speaker">🔊</div>
-        <p class="sound-label">点击例句重听一遍</p>
+        <p class="sound-label">点击重听一遍</p>
       </button>
       <audio id="sentence-once-audio" preload="none" src="{{ID}}_sentence_x1.mp3"></audio>
       <p class="stage-hint">再点空白处查看单词</p>
@@ -25,16 +27,18 @@
         <p class="meaning">{{MeaningZh}}</p>
         <p class="interaction-hint">点击词块播放</p>
       </button>
+      {{#SentenceJa}}
       <div class="divider"></div>
       <button class="answer-sentence audio-target" id="answer-sentence" type="button" aria-label="播放例句">
         <p class="sentence-ja">{{SentenceJa}}</p>
         <p class="sentence-zh">{{SentenceZhReviewed}}</p>
         <p class="interaction-hint">点击例句播放</p>
       </button>
+      {{/SentenceJa}}
       <p class="fallback-answer">若未出现评分按钮，请按空格显示答案。</p>
     </section>
   </main>
-  <div class="bottom-note">语音：Edge TTS · Nanami · 0.90×</div>
+  <div class="bottom-note">语音：Edge TTS · Nanami · 0.90× · 音量增强</div>
 </div>
 <script>
 (() => {
@@ -52,7 +56,8 @@
     if (onceAudio) { onceAudio.currentTime = 0; onceAudio.play(); }
   });
   document.getElementById('word-once').addEventListener('click', (event) => { event.stopPropagation(); });
-  document.getElementById('answer-sentence').addEventListener('click', (event) => { event.stopPropagation(); });
+  const answerSentence = document.getElementById('answer-sentence');
+  if (answerSentence) answerSentence.addEventListener('click', (event) => { event.stopPropagation(); });
   area.addEventListener('click', (event) => {
     if (event.target.closest('button, a, .anki-audio, .audio-target')) return;
     if (stage === 1) { show(2); return; }
