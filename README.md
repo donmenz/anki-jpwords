@@ -1,22 +1,57 @@
-# anki-jpwords · N3 0125-0174
+# anki-jpwords · JLPT N3
 
-This branch builds a 50-card Anki package for IDs `n3_0125` through `n3_0174`.
+This repository contains a complete, reviewable JLPT N3 vocabulary dataset
+recovered from 《无敌绿宝书》 and prepared for a later GitHub-based audio and
+Anki build.
 
-## Output
+## Current dataset
 
-- Deck: `无敌绿宝书::N3（音量增强版）`
-- Note type: `无敌绿宝书 · 三阶段听辨（音量增强版）`
-- Voice: Microsoft Edge TTS `ja-JP-NanamiNeural`
-- Rate: `-10%` (displayed as 0.90×)
-- Audio per card:
-  - word ×2
-  - sentence ×1
-  - sentence ×2
-- APKG: `dist/无敌绿宝书-N3-0125至0174.apkg`
+- 3,256 continuous cards: `n3_0001` through `n3_3256`
+- 31 units
+- Every card has a headword, reading, part of speech, Chinese meaning,
+  Japanese example sentence, and Chinese example translation
+- Example provenance and review status are stored per card
+- Audio has **not** been generated for the full dataset yet
 
-The model ID and deck ID match the existing 001-124 package, so importing this package appends the next 50 cards to the same note type/deck.
+Files:
 
-## Build locally
+- `data/n3/wordlist.json` — complete dataset
+- `data/n3/batches/` — four non-overlapping GitHub-processing batches
+- `data/n3/quality_summary.json` — source and review counts
+- `artifacts/n3_wordlist_3256.xlsx` — filterable review workbook
+
+## Review status
+
+The dataset is structurally complete, but it is not represented as a fully
+human-reviewed edition. The workbook and JSON retain two independent statuses:
+
+- `review_status` for example sentences
+- `lexical_review_status` for headword, reading, part of speech, and meaning
+
+Current example sources:
+
+- 1,968 Tatoeba Japanese-Chinese direct pairs
+- 601 Tatoeba examples linked through the same English sentence
+- 432 examples retained from the source book
+- 255 generated fallback examples
+
+Tatoeba indirect pairs, OCR-derived source examples, and generated examples
+remain explicitly marked for review before full audio generation.
+
+## Validate the wordlist
+
+No third-party package is required:
+
+```bash
+python scripts/validate_wordlist.py
+```
+
+The validator checks row count, continuous IDs, required fields, placeholder
+sentences, and the four batch boundaries.
+
+## Legacy 50-card Anki build
+
+The earlier `n3_0125`–`n3_0174` build remains available for reference:
 
 ```bash
 sudo apt-get install ffmpeg
@@ -25,11 +60,11 @@ python scripts/build_apkg.py
 python scripts/validate_apkg.py "dist/无敌绿宝书-N3-0125至0174.apkg"
 ```
 
-## Card flow
+The source PDF and generated audio are not stored in this repository.
 
-1. The sentence audio plays twice without showing text.
-2. Click blank space to reveal the Japanese sentence.
-3. Click the sentence to replay it once.
-4. Click blank space again to reveal the word, reading, part of speech, meaning and reviewed Chinese translation.
+## Data sources
 
-Only the transformed 50-card dataset and build code are included here; the source PDF is not stored in the repository.
+- Source book pages: vocabulary, readings, parts of speech, meanings, and
+  original examples
+- Tatoeba downloads: <https://tatoeba.org/en/downloads>
+- OpenCC: <https://github.com/BYVoid/OpenCC>
