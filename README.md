@@ -1,84 +1,69 @@
-# anki-jpwords · JLPT N3
+# anki-jpwords · JLPT N3 3400 词
 
-This repository contains a complete, reviewable JLPT N3 vocabulary dataset
-recovered from 《无敌绿宝书》 and prepared for a later GitHub-based audio and
-Anki build.
+本仓库以清晰版《无敌绿宝书》PDF 为底稿，保存完整 N3 词表、原书例句、中文翻译勘误，以及通过 GitHub Actions 生成 Edge TTS 全量 Anki 卡组的流程。
 
-## Current dataset
+## 当前数据
 
-- 3,256 continuous cards: `n3_0001` through `n3_3256`
-- 31 units
-- Every card has a headword, reading, part of speech, Chinese meaning,
-  Japanese example sentence, and Chinese example translation
-- Example provenance and review status are stored per card
-- Audio has **not** been generated for the full dataset yet
+- 3400 个连续词条：`n3_0001` 至 `n3_3400`
+- 32 个单元，单元数量与原书一致
+- 3254 个原书例句及原书中译
+- 第 32 单元 146 个补充词；原书没有提供例句
+- 47 条已确认勘误：实质误译、词义修正、措辞优化及 7 条习题文本串入清理
+- 最终卡组使用修订译文，同时保留原书中译供对照
 
-Files:
+主要文件：
 
-- `data/n3/wordlist.json` — complete dataset
-- `data/n3/batches/` — four non-overlapping GitHub-processing batches
-- `data/n3/quality_summary.json` — source and review counts
-- `artifacts/n3_wordlist_3256.xlsx` — filterable review workbook
+- `data/n3/wordlist_original.json`：清晰 PDF 的原始提取结果
+- `data/n3/wordlist.json`：应用勘误后的最终构建数据
+- `data/n3/wordlist.csv`：可直接用表格软件打开的全量词表
+- `review/n3_translation_corrections.json`：可重复应用的结构化修订
+- `review/n3_translation_errata.csv`：47 条中文翻译勘误
+- `artifacts/n3_wordlist_3400_with_errata.xlsx`：全量词表与勘误 Excel
 
-## Review status
-
-The dataset is structurally complete, but it is not represented as a fully
-human-reviewed edition. The workbook and JSON retain two independent statuses:
-
-- `review_status` for example sentences
-- `lexical_review_status` for headword, reading, part of speech, and meaning
-
-Current example sources:
-
-- 1,968 Tatoeba Japanese-Chinese direct pairs
-- 601 Tatoeba examples linked through the same English sentence
-- 432 examples retained from the source book
-- 255 generated fallback examples
-
-Tatoeba indirect pairs, OCR-derived source examples, and generated examples
-remain explicitly marked for review before full audio generation.
-
-## Validate the wordlist
-
-No third-party package is required:
+重新应用修订并校验：
 
 ```bash
+python scripts/apply_translation_corrections.py
 python scripts/validate_wordlist.py
 ```
 
-The validator checks row count, continuous IDs, required fields, placeholder
-sentences, and the four batch boundaries.
+## GitHub Actions 生成全量 APKG
 
-## Generate the complete audio deck on GitHub
+工作流名称为 **Generate Full N3 Audio**。拉取请求会自动生成 4 张样卡；正式全量构建需要在 `main` 手动触发：
 
-The `Generate Full N3 Audio` workflow is deliberately manual for full runs.
-It does not commit generated MP3 files to Git. Audio is split into 16 resumable
-shards, with at most four shards running in parallel.
+1. 打开仓库的 **Actions** 页面。
+2. 选择 **Generate Full N3 Audio**。
+3. 点击 **Run workflow**，分支选 `main`。
+4. `mode` 选择 `full` 后运行。
+5. 完成后下载 `n3-0001-3400-edge-tts-apkg`。
 
-1. Open the repository's **Actions** tab.
-2. Select **Generate Full N3 Audio**.
-3. Choose **Run workflow** on `main`.
-4. Run `sample` first (the default, eight cards).
-5. After the sample artifact is checked, run again with mode `full`.
-6. Download the `n3-0001-3256-apkg` artifact after all jobs finish.
+音频参数：
 
-Each card produces three 24 kHz mono MP3 files:
+- 声音：Microsoft Edge TTS `ja-JP-NanamiNeural`
+- 语速：`-10%`（约 0.90×）
+- 后处理：FFmpeg `loudnorm`，24 kHz、单声道、96 kbps
+- 每张卡 3 个 MP3：单词两遍、例句一遍、例句两遍
+- 第 32 单元没有原书例句，因此两个“例句”音频槽使用单词读音
+- 全量共 10200 个 MP3，拆为 16 个可恢复分片，并行上限为 4
 
-- word played twice
-- sentence played once
-- sentence played twice
+最终工作流会验证全部音频，再构建 `无敌绿宝书-N3-3400词-EdgeTTS.apkg`，并检查 3400 个笔记、3400 张卡片、连续 ID 和 10200 个媒体文件。
 
-The complete run validates all 9,768 MP3 files, builds the 3,256-card APKG,
-and validates its notes, cards, IDs, and media table. Successful shards are
-cached, so a later rerun can reuse completed audio for the same wordlist.
+## 卡片模板
 
-Generated artifacts are retained for 14 days. The workflow uses Microsoft
-Edge TTS (`ja-JP-NanamiNeural`, rate `-10%`) and therefore requires outbound
-network access from the GitHub runner.
+卡片沿用此前确定的三阶段听辨模板：
 
-## Legacy 50-card Anki build
+- 第一阶段只听音频
+- 第二阶段显示原书日语例句
+- 第三阶段显示大号假名、词头、中文释义及修订后的例句中译
+- 点击词块或例句即可播放
+- 长词保持单行显示
+- 第 32 单元显示“原书未提供例句”，保留单词训练
 
-The earlier `n3_0125`–`n3_0174` build remains available for reference:
+本版使用独立的 Anki 模型、牌组 ID 与 GUID 前缀，可与早期 3256 词实验版及原书配音版共存，不会互相覆盖。
+
+## 旧版 50 卡构建
+
+早期 `n3_0125`–`n3_0174` 的 50 卡脚本仍保留作参考：
 
 ```bash
 sudo apt-get install ffmpeg
@@ -87,11 +72,4 @@ python scripts/build_apkg.py
 python scripts/validate_apkg.py "dist/无敌绿宝书-N3-0125至0174.apkg"
 ```
 
-The source PDF and generated audio are not stored in this repository.
-
-## Data sources
-
-- Source book pages: vocabulary, readings, parts of speech, meanings, and
-  original examples
-- Tatoeba downloads: <https://tatoeba.org/en/downloads>
-- OpenCC: <https://github.com/BYVoid/OpenCC>
+源 PDF 和生成的 MP3 不提交到仓库；GitHub Actions 产物默认保留 14 天。

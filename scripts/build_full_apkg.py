@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the complete 3,256-card N3 APKG from pre-generated audio."""
+"""Build the complete 3,400-card clean-PDF N3 APKG from Edge TTS audio."""
 
 from __future__ import annotations
 
@@ -48,15 +48,18 @@ def build_package(
         fields = to_anki_fields(row)
         tags = [
             "N3",
+            "CleanPdfEdgeTTS",
             f"Unit{int(row['unit']):02d}",
-            str(row["review_status"]).replace(" ", "_"),
-            str(row["lexical_review_status"]).replace(" ", "_"),
+            str(row["translation_status"]).replace(" ", "_"),
+            "OriginalExample" if row["has_original_sentence"] else "NoOriginalExample",
         ]
         deck.add_note(genanki.Note(
             model=model,
             fields=[fields[field] for field in FIELDS],
             tags=tags,
-            guid=genanki.guid_for(str(row["id"])),
+            # Keep this edition separate from the earlier 3,256-card TTS deck
+            # and from the publisher-audio deck in the same Anki profile.
+            guid=genanki.guid_for("n3-clean-pdf-edge-tts-v1", str(row["id"])),
         ))
 
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -70,7 +73,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=Path, default=Path("data/n3/wordlist.json"))
     parser.add_argument("--audio-dir", type=Path, required=True)
-    parser.add_argument("--output", type=Path, default=Path("dist/无敌绿宝书-N3-0001至3256.apkg"))
+    parser.add_argument("--output", type=Path, default=Path("dist/无敌绿宝书-N3-3400词-EdgeTTS.apkg"))
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[1]
