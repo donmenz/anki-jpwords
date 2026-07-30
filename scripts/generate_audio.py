@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate one resumable shard of full-deck Edge TTS audio."""
+"""Generate one resumable shard of Edge TTS audio for a Japanese wordbook."""
 
 from __future__ import annotations
 
@@ -13,8 +13,9 @@ from pathlib import Path
 
 import edge_tts
 
-from n3_audio_common import (
+from deck_common import (
     audio_names,
+    load_config,
     load_wordlist,
     select_shard,
     sentence_audio_text,
@@ -22,10 +23,6 @@ from n3_audio_common import (
 )
 
 
-VOICE = "ja-JP-NanamiNeural"
-RATE = "-10%"
-VOLUME = "+0%"
-PITCH = "+0Hz"
 MIN_BYTES = 1000
 
 
@@ -44,7 +41,7 @@ def valid_audio(path: Path) -> bool:
     return path.is_file() and path.stat().st_size > MIN_BYTES
 
 
-async def synthesize(text: str, output: Path, retries: int) -> None:
+async def synthesize(text: str, output: Path, retries: int, config: dict[str, object]) -> None:
     if valid_audio(output):
         return
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -54,10 +51,10 @@ async def synthesize(text: str, output: Path, retries: int) -> None:
             temporary.unlink(missing_ok=True)
             communicator = edge_tts.Communicate(
                 text=text,
-                voice=VOICE,
-                rate=RATE,
-                volume=VOLUME,
-                pitch=PITCH,
+                voice=str(config["voice"]),
+                rate=str(config["rate"]),
+                volume=str(config["volume"]),
+                pitch=str(config["pitch"]),
             )
             await communicator.save(str(temporary))
             normalized = output.with_suffix(".normalized.mp3")
@@ -66,7 +63,9 @@ async def synthesize(text: str, output: Path, retries: int) -> None:
                 "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
                 "-i", str(temporary),
                 "-af", "loudnorm=I=-16:TP=-1.0:LRA=11",
-                "-ar", "24000", "-ac", "1", "-b:a", "96k",
+                "-ar", str(config["sample_rate_hz"]),
+                "-ac", str(config["channels"]),
+                "-b:a", f"{config['bit_rate_kbps']}k",
                 str(normalized),
             )
             temporary.unlink(missing_ok=True)
@@ -82,7 +81,7 @@ async def synthesize(text: str, output: Path, retries: int) -> None:
             await asyncio.sleep(min(3 * attempt, 15))
 
 
-async def make_double(single: Path, output: Path) -> None:
+async def make_double(single: Path, output: Path, config: dict[str, object]) -> None:
     if valid_audio(output):
         return
     temporary = output.with_suffix(".concat.mp3")
@@ -90,9 +89,10 @@ async def make_double(single: Path, output: Path) -> None:
     await run_process(
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
         "-i", str(single),
-        "-f", "lavfi", "-t", "0.700", "-i", "anullsrc=r=24000:cl=mono",
+        "-f", "lavfi", "-t", "0.700", "-i", f"anullsrc=r={config['sample_rate_hz']}:cl=mono",
         "-filter_complex", "[0:a]asplit=2[first][second];[first][1:a][second]concat=n=3:v=0:a=1[out]",
-        "-map", "[out]", "-ar", "24000", "-ac", "1", "-b:a", "96k",
+        "-map", "[out]", "-ar", str(config["sample_rate_hz"]),
+        "-ac", str(config["channels"]), "-b:a", f"{config['bit_rate_kbps']}k",
         str(temporary),
     )
     if not valid_audio(temporary):
@@ -106,6 +106,7 @@ async def generate_card(
     work_dir: Path,
     retries: int,
     semaphore: asyncio.Semaphore,
+    config: dict[str, object],
 ) -> None:
     card_id = str(row["id"])
     word_x2_name, sentence_x1_name, sentence_x2_name = audio_names(card_id)
@@ -119,10 +120,10 @@ async def generate_card(
     async with semaphore:
         print(f"generate {card_id}", flush=True)
         if not valid_audio(word_x2):
-            await synthesize(word_audio_text(row), word_x1, retries)
-            await make_double(word_x1, word_x2)
-        await synthesize(sentence_audio_text(row), sentence_x1, retries)
-        await make_double(sentence_x1, sentence_x2)
+            await synthesize(word_audio_text(row), word_x1, retries, config)
+            await make_double(word_x1, word_x2, config)
+        await synthesize(sentence_audio_text(row), sentence_x1, retries, config)
+        await make_double(sentence_x1, sentence_x2, config)
         word_x1.unlink(missing_ok=True)
 
 
@@ -135,7 +136,8 @@ def sha256(path: Path) -> str:
 
 
 async def async_main(args: argparse.Namespace) -> None:
-    rows = load_wordlist(args.input)
+    config = load_config(args.config)
+    rows = load_wordlist(args.input, config)
     selected = select_shard(rows, args.shard_index, args.shard_count, args.limit)
     print(
         f"selected {len(selected)} cards: {selected[0]['id']}–{selected[-1]['id']} "
@@ -149,7 +151,7 @@ async def async_main(args: argparse.Namespace) -> None:
     work_dir.mkdir(parents=True, exist_ok=True)
     semaphore = asyncio.Semaphore(args.concurrency)
     await asyncio.gather(*(
-        generate_card(row, args.output_dir, work_dir, args.retries, semaphore)
+        generate_card(row, args.output_dir, work_dir, args.retries, semaphore, config)
         for row in selected
     ))
 
@@ -165,10 +167,13 @@ async def async_main(args: argparse.Namespace) -> None:
         entries.append({"id": card_id, "files": files})
     manifest = {
         "version": 1,
-        "voice": VOICE,
-        "rate": RATE,
-        "sample_rate_hz": 24000,
-        "channels": 1,
+        "voice": config["voice"],
+        "rate": config["rate"],
+        "volume": config["volume"],
+        "pitch": config["pitch"],
+        "sample_rate_hz": config["sample_rate_hz"],
+        "channels": config["channels"],
+        "bit_rate_kbps": config["bit_rate_kbps"],
         "shard_index": args.shard_index,
         "shard_count": args.shard_count,
         "card_count": len(selected),
@@ -185,8 +190,9 @@ async def async_main(args: argparse.Namespace) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=Path, default=Path("data/n3/wordlist.json"))
-    parser.add_argument("--output-dir", type=Path, default=Path("build/n3-audio"))
+    parser.add_argument("--config", type=Path, default=Path("data/deck-config.json"))
+    parser.add_argument("--input", type=Path, default=Path("data/wordlist.json"))
+    parser.add_argument("--output-dir", type=Path, default=Path("build/audio"))
     parser.add_argument("--work-dir", type=Path)
     parser.add_argument("--shard-index", type=int, default=0)
     parser.add_argument("--shard-count", type=int, default=1)

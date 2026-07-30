@@ -1,15 +1,8 @@
 # Build Japanese Anki APKG Skill
 
-这个仓库以可复用的 Codex / ChatGPT Skill 为核心，指导代理把经过校验的日语词表转换为带 Edge TTS 音频的 Anki `.apkg`，监控 GitHub Actions 全量构建，下载并验收成品，并在用户确认交付后清理仓库中的词表数据。
+这个仓库以可复用的 Codex / ChatGPT Skill 为核心，可把任意日语词书制作成带 Edge TTS 音频、经过结构验收的 Anki `.apkg`。词书名称、卡片数量、ID、牌组身份、音色和输出文件名都由本次构建的配置决定。
 
-仓库默认只保存：
-
-- Skill 工作流与质量门槛；
-- APKG、音频和数据校验脚本；
-- 三阶段听辨卡片模板；
-- GitHub Actions 构建流程。
-
-仓库默认不保存完整词表、原书例句、翻译勘误、生成音频或 APKG 成品。
+仓库平时只保存 Skill、脚本、三阶段听辨模板和 GitHub Actions，不长期保存词表、原书例句、翻译勘误、音频或 APKG。
 
 ## 使用 Skill
 
@@ -21,65 +14,76 @@ $build-japanese-anki-apkg
 
 ChatGPT 桌面端也可以在 **Skills** 侧栏找到 **Build Japanese Anki APKG**，或在聊天框使用 `@` 选择它。
 
-Skill 文件位于：
+Skill 文件位于 `.agents/skills/build-japanese-anki-apkg/`。
+
+## 它会完成什么
+
+1. 接收词书、例句与翻译修订，保留原始内容和人工修订的来源关系。
+2. 为本次词书建立 `data/deck-config.json`，再生成并验证标准词表。
+3. 先生成少量音频用于检查，再由 GitHub Actions 动态分片生成全量音频。
+4. 构建并验证 APKG 的卡片数、字段、牌组身份及每张卡的三个媒体文件。
+5. 将 APKG 和对应配置保存到仓库外的持久目录。
+6. 等待用户实际导入确认；只有用户明确同意后，才删除仓库里的临时词表数据并提交清理改动。
+
+任何原书没有例句的词条都会保留 `has_original_sentence: false`，卡片界面明确显示“原书未提供例句”；脚本不会为了填满字段而伪造句子。
+
+## 临时构建数据
+
+构建期间使用：
 
 ```text
-.agents/skills/build-japanese-anki-apkg/
-├── SKILL.md
-├── agents/openai.yaml
-└── references/quality-gates.md
+data/deck-config.json
+data/source.json
+data/corrections.json
+data/wordlist.json
+data/wordlist.csv
+data/errata.csv
+data/wordlist.xlsx       # 可选
 ```
 
-## Skill 覆盖的流程
+这些文件可以为了 GitHub Actions 构建而临时进入仓库，但不是长期内容。手动触发 Action 时缺少配置或词表会明确失败；清理 PR 中没有数据时，Action 只确认仓库已回到无词表状态。
 
-1. 接收并核对用户提供的词表、原书例句和翻译修订。
-2. 保留原始数据与修订数据的来源关系，禁止用模板句冒充原书例句。
-3. 在构建期间将数据临时放入约定目录。
-4. 重放修订并验证完整词表。
-5. 先通过样卡检查模板与 TTS。
-6. 在 GitHub Actions 中分片生成全量 Edge TTS 音频并构建 APKG。
-7. 下载 APKG，验证卡片、媒体、字段、代表性勘误和音频编码。
-8. 将验收后的 APKG 保存到用户指定的持久化目录。
-9. 等待用户明确确认成品可用。
-10. 仅在用户确认后，从仓库当前分支删除词表、勘误和含词条的工作簿，并提交清理改动。
+普通删除提交只会从当前分支移除数据，历史提交仍可能含有旧版本。永久擦除 Git 历史必须单独评估并取得明确授权。
 
-## 临时数据约定
+## 每本词书的配置
 
-构建期间使用以下路径：
+`data/deck-config.json` 是本次牌组的身份凭据。示例：
 
-```text
-data/n3/wordlist_original.json
-data/n3/wordlist.json
-data/n3/wordlist.csv
-review/n3_translation_corrections.json
-review/n3_translation_errata.csv
-artifacts/*.xlsx
+```json
+{
+  "source_title": "示例日语词书",
+  "id_prefix": "sample",
+  "id_width": 4,
+  "expected_total": 1200,
+  "expected_original_examples": 1080,
+  "expected_unit_counts": {"上册": 600, "下册": 600},
+  "model_id": 1889931025,
+  "deck_id": 1889931026,
+  "model_name": "示例日语词书 · 三阶段听辨",
+  "deck_name": "日语词书::示例日语词书",
+  "guid_prefix": "sample-wordbook-edge-tts-v1",
+  "tag_prefix": "SampleWordbook",
+  "output_filename": "示例日语词书-EdgeTTS.apkg",
+  "artifact_name": "sample-wordbook-apkg",
+  "voice": "ja-JP-NanamiNeural",
+  "rate": "-10%",
+  "volume": "+0%",
+  "pitch": "+0Hz",
+  "sample_rate_hz": 24000,
+  "channels": 1,
+  "bit_rate_kbps": 96
+}
 ```
 
-这些文件可以为了 GitHub Actions 构建而临时进入仓库，但不是仓库的长期内容。构建脚本不会在数据缺失时伪造默认词条；手动触发全量 Action 而没有 `data/n3/wordlist.json` 会明确失败。清理 PR 删除数据时，Action 只报告仓库已回到无词表状态，不会尝试生成样卡。
+`expected_original_examples` 和 `expected_unit_counts` 可以省略；其余身份字段用于保证同一本词书重建时仍能稳定更新原卡片。
 
-普通删除提交只会把数据从当前 `main` 文件树移除，历史提交仍可能包含旧版本。如果需要从 Git 历史永久擦除，必须单独评估影响并取得用户明确授权后再进行历史重写。
+## 构建组件
 
-## 保留的构建组件
-
-- `.github/workflows/generate-full-n3.yml`：样卡和全量 Edge TTS/APKG 工作流。
+- `.github/workflows/generate-apkg.yml`：样本音频和全量 APKG 工作流。
 - `scripts/apply_translation_corrections.py`：重放结构化翻译修订。
-- `scripts/validate_wordlist.py`：验证完整 N3 数据。
-- `scripts/generate_n3_audio.py`：生成可恢复音频分片。
-- `scripts/validate_n3_audio.py`：逐个检查 MP3。
-- `scripts/build_full_apkg.py`：构建全量 APKG。
-- `scripts/validate_full_apkg.py`：验证最终牌组。
+- `scripts/validate_wordlist.py`：按词书配置验证词表。
+- `scripts/generate_audio.py` / `scripts/validate_audio.py`：生成和逐个检查 MP3。
+- `scripts/build_apkg.py` / `scripts/validate_apkg.py`：构建和验收最终牌组。
 - `templates/`：三阶段听辨卡片模板。
 
-## 当前 N3 构建契约
-
-- 3400 个连续 ID：`n3_0001`–`n3_3400`
-- 3254 条原书例句
-- 第 32 单元 146 个原书无例句补充词
-- 3400 个笔记、3400 张卡片
-- 每张卡 3 个 MP3，共 10200 个媒体文件
-- Edge TTS：`ja-JP-NanamiNeural`，语速 `-10%`
-- 输出：24 kHz、单声道、96 kbps MP3
-- 正式 Action 制品：`n3-0001-3400-edge-tts-apkg`
-
-详细的身份、音频与验收规则以 `.agents/skills/build-japanese-anki-apkg/references/quality-gates.md` 为准。
+每张卡固定引用 `word_x2`、`sentence_x1`、`sentence_x2` 三个 MP3；总卡片数、媒体数、分片数、牌组名和 Action 制品名全部动态计算。详细规则见 `.agents/skills/build-japanese-anki-apkg/references/quality-gates.md`。

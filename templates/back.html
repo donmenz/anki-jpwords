@@ -1,5 +1,5 @@
 <div id="anki-card">
-  <div class="card-head"><span>{{Level}} · {{ID}}</span><span>3 / 3</span></div>
+  <div class="card-head"><span>{{SourceTitle}} · {{ID}}</span><span>3 / 3</span></div>
   <main id="card-area">
     <section class="stage active">
       <button class="word-block" id="word-once" type="button" aria-label="播放单词两遍">
@@ -19,10 +19,10 @@
       </button>
       <div class="anki-audio audio-driver" id="sentence-x1-player">{{SentenceAudioX1}}</div>
       {{/SentenceJa}}
-      {{^SentenceJa}}<p class="no-example">第32单元原书未提供例句</p>{{/SentenceJa}}
+      {{^SentenceJa}}<p class="no-example">原书未提供例句</p>{{/SentenceJa}}
     </section>
   </main>
-  <div class="bottom-note">语音：Edge TTS · Nanami · 0.90× · 音量增强</div>
+  <div class="bottom-note">语音：Edge TTS · 音量标准化</div>
 </div>
 <script>
 (() => {

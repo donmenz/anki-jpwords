@@ -1,39 +1,21 @@
 #!/usr/bin/env python3
-"""Validate the complete clean-PDF N3 wordlist and reviewed corrections."""
+"""Validate a configuration-driven Japanese wordbook and its corrections."""
 
 from __future__ import annotations
 
+import argparse
 import json
 from collections import Counter
 from pathlib import Path
 
+from deck_common import load_config, load_wordlist
 
-ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = ROOT / "data" / "n3"
-WORDLIST = DATA_DIR / "wordlist.json"
-ERRATA = ROOT / "review" / "n3_translation_corrections.json"
-EXPECTED_TOTAL = 3400
-EXPECTED_EXAMPLES = 3254
-EXPECTED_ERRATA = 47
-EXPECTED_UNIT_COUNTS = {
-    1: 106, 2: 119, 3: 104, 4: 91, 5: 143, 6: 144, 7: 105, 8: 119,
-    9: 86, 10: 110, 11: 84, 12: 97, 13: 95, 14: 92, 15: 103, 16: 101,
-    17: 96, 18: 118, 19: 74, 20: 126, 21: 95, 22: 107, 23: 105,
-    24: 106, 25: 83, 26: 106, 27: 96, 28: 112, 29: 106, 30: 130,
-    31: 95, 32: 146,
-}
-REQUIRED_FIELDS = (
-    "id",
-    "unit",
-    "word",
-    "reading",
-    "part_of_speech",
-    "meaning_zh",
+
+REQUIRED_REVIEW_FIELDS = (
     "meaning_zh_original",
     "meaning_zh_reviewed",
     "translation_status",
     "translation_note",
-    "has_original_sentence",
 )
 
 
@@ -42,45 +24,65 @@ def load_json(path: Path):
 
 
 def main() -> None:
-    rows = load_json(WORDLIST)
-    expected_ids = [f"n3_{number:04d}" for number in range(1, EXPECTED_TOTAL + 1)]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=Path, default=Path("data/deck-config.json"))
+    parser.add_argument("--input", type=Path, default=Path("data/wordlist.json"))
+    parser.add_argument("--corrections", type=Path, default=Path("data/corrections.json"))
+    args = parser.parse_args()
 
-    assert len(rows) == EXPECTED_TOTAL, f"expected {EXPECTED_TOTAL} rows, got {len(rows)}"
-    assert [row["id"] for row in rows] == expected_ids, "IDs are missing, duplicated, or out of order"
-
-    for field in REQUIRED_FIELDS:
+    config = load_config(args.config)
+    rows = load_wordlist(args.input, config)
+    for field in REQUIRED_REVIEW_FIELDS:
         empty = [row["id"] for row in rows if not str(row.get(field, "")).strip()]
-        assert not empty, f"empty {field}: {empty[:10]}"
+        if empty:
+            raise ValueError(f"empty {field}: {empty[:10]}")
 
     examples = [row for row in rows if row["has_original_sentence"]]
-    supplements = [row for row in rows if not row["has_original_sentence"]]
-    assert len(examples) == EXPECTED_EXAMPLES, len(examples)
-    assert len(supplements) == EXPECTED_TOTAL - EXPECTED_EXAMPLES, len(supplements)
-    assert all(int(row["unit"]) == 32 for row in supplements), "no-example rows must be Unit 32"
+    source_missing = [row for row in rows if not row["has_original_sentence"]]
+    expected_examples = config.get("expected_original_examples")
+    if expected_examples is not None and len(examples) != int(expected_examples):
+        raise ValueError(f"expected {expected_examples} original examples, got {len(examples)}")
     for row in examples:
-        for field in ("sentence_ja", "sentence_zh_original", "sentence_zh_reviewed"):
-            assert str(row.get(field, "")).strip(), f"{row['id']} has empty {field}"
+        if not str(row.get("sentence_ja", "")).strip():
+            raise ValueError(f"{row['id']} has an empty Japanese source example")
+
     contamination = [
         row["id"] for row in rows
         if "习题：" in str(row.get("sentence_ja", ""))
         or "解析：" in str(row.get("sentence_ja", ""))
         or "习题：" in str(row.get("sentence_zh_reviewed", ""))
     ]
-    assert not contamination, f"exercise commentary remains: {contamination[:10]}"
+    if contamination:
+        raise ValueError(f"exercise commentary remains: {contamination[:10]}")
 
-    unit_counts = Counter(int(row["unit"]) for row in rows)
-    assert dict(unit_counts) == EXPECTED_UNIT_COUNTS, dict(unit_counts)
+    unit_counts = Counter(str(row.get("unit", "")) for row in rows)
+    expected_unit_counts = config.get("expected_unit_counts")
+    if expected_unit_counts is not None and dict(unit_counts) != expected_unit_counts:
+        raise ValueError(f"unit counts differ: {dict(unit_counts)}")
 
-    errata = load_json(ERRATA)
-    assert len(errata) == EXPECTED_ERRATA, len(errata)
-    assert len({row["id"] for row in errata}) == EXPECTED_ERRATA, "duplicate errata ids"
-    corrected_ids = {row["id"] for row in rows if row["translation_status"] != "original_book" and row["translation_status"] != "no_example_in_source"}
-    assert corrected_ids == {row["id"] for row in errata}, "wordlist corrections differ from errata"
+    corrections = load_json(args.corrections)
+    if not isinstance(corrections, list):
+        raise ValueError("corrections must be a JSON array")
+    correction_ids = [str(row.get("id", "")) for row in corrections]
+    if len(set(correction_ids)) != len(correction_ids):
+        raise ValueError("duplicate correction ids")
+    word_ids = {str(row["id"]) for row in rows}
+    unknown = sorted(set(correction_ids) - word_ids)
+    if unknown:
+        raise ValueError(f"unknown correction ids: {unknown[:10]}")
+    unchanged_statuses = {"original_book", "no_example_in_source"}
+    corrected_ids = {
+        str(row["id"]) for row in rows
+        if str(row["translation_status"]) not in unchanged_statuses
+    }
+    if corrected_ids != set(correction_ids):
+        raise ValueError("wordlist corrections differ from structured corrections")
 
     print(f"PASS: {len(rows)} continuous rows ({rows[0]['id']}–{rows[-1]['id']})")
-    print(f"Original examples: {len(examples)}; Unit 32 supplements: {len(supplements)}")
-    print("Translation status:", dict(Counter(row["translation_status"] for row in rows)))
-    print("Unit counts:", dict(unit_counts))
+    print(f"Original examples: {len(examples)}; source-missing examples: {len(source_missing)}")
+    print("Translation status:", dict(Counter(str(row["translation_status"]) for row in rows)))
+    if expected_unit_counts is not None:
+        print("Unit counts:", dict(unit_counts))
 
 
 if __name__ == "__main__":

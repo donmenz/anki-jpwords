@@ -1,4 +1,4 @@
 interface:
   display_name: "Build Japanese Anki APKG"
-  short_description: "生成、验收完整 APKG，并在用户确认后安全清理仓库词表数据"
-  default_prompt: "Use $build-japanese-anki-apkg to build and verify the N3 APKG, then remove repository wordlist data only after I confirm."
+  short_description: "把任意日语词书制作成带音频且经过验收的 Anki 牌组"
+  default_prompt: "Use $build-japanese-anki-apkg to turn this Japanese vocabulary book into a verified audio APKG and clean up repository data only after I confirm."
