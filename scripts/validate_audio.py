@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate every MP3 in a generated N3 audio selection."""
+"""Validate every MP3 in a generated Japanese wordbook audio selection."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from n3_audio_common import audio_names, load_wordlist, select_shard
+from deck_common import audio_names, load_config, load_wordlist, select_shard
 
 
 def probe(path: Path) -> tuple[str, int, int, float]:
@@ -31,7 +31,8 @@ def probe(path: Path) -> tuple[str, int, int, float]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input", type=Path, default=Path("data/n3/wordlist.json"))
+    parser.add_argument("--config", type=Path, default=Path("data/deck-config.json"))
+    parser.add_argument("--input", type=Path, default=Path("data/wordlist.json"))
     parser.add_argument("--audio-dir", type=Path, required=True)
     parser.add_argument("--shard-index", type=int, default=0)
     parser.add_argument("--shard-count", type=int, default=1)
@@ -39,7 +40,8 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=8)
     args = parser.parse_args()
 
-    rows = load_wordlist(args.input)
+    config = load_config(args.config)
+    rows = load_wordlist(args.input, config)
     selected = select_shard(rows, args.shard_index, args.shard_count, args.limit)
     expected = [name for row in selected for name in audio_names(str(row["id"]))]
     actual = sorted(path.name for path in args.audio_dir.glob("*.mp3"))
@@ -55,13 +57,16 @@ def main() -> None:
         metadata = list(pool.map(probe, (args.audio_dir / name for name in expected)))
     invalid = [
         item for item in metadata
-        if item[1] != 24000 or item[2] != 1 or item[3] <= 0.2
+        if item[1] != int(config["sample_rate_hz"])
+        or item[2] != int(config["channels"])
+        or item[3] <= 0.2
     ]
     if invalid:
         raise ValueError(f"invalid audio metadata: {invalid[:10]}")
     print(
         f"PASS: {len(selected)} cards, {len(expected)} MP3 files, "
-        f"24 kHz mono ({selected[0]['id']}–{selected[-1]['id']})"
+        f"{config['sample_rate_hz']} Hz, {config['channels']} channel(s) "
+        f"({selected[0]['id']}–{selected[-1]['id']})"
     )
 
 

@@ -1,10 +1,10 @@
-name: Generate Full N3 Audio
+name: Generate Japanese Anki APKG
 
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Generate a small sample or the complete deck
+        description: Generate a small audio sample or the complete deck
         required: true
         type: choice
         default: sample
@@ -18,21 +18,17 @@ on:
         default: "8"
   pull_request:
     paths:
-      - "data/n3/**"
+      - "data/**"
       - "templates/**"
-      - "scripts/n3_audio_common.py"
-      - "scripts/generate_n3_audio.py"
-      - "scripts/validate_n3_audio.py"
-      - "scripts/build_full_apkg.py"
-      - "scripts/validate_full_apkg.py"
+      - "scripts/**"
       - "requirements.txt"
-      - ".github/workflows/generate-full-n3.yml"
+      - ".github/workflows/generate-apkg.yml"
 
 permissions:
   contents: read
 
 concurrency:
-  group: full-n3-audio-${{ github.ref }}
+  group: japanese-wordbook-audio-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -40,6 +36,12 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       has_wordlist: ${{ steps.detect.outputs.has_wordlist }}
+      card_count: ${{ steps.metadata.outputs.card_count }}
+      media_count: ${{ steps.metadata.outputs.media_count }}
+      shard_count: ${{ steps.metadata.outputs.shard_count }}
+      shards: ${{ steps.metadata.outputs.shards }}
+      artifact_name: ${{ steps.metadata.outputs.artifact_name }}
+      output_filename: ${{ steps.metadata.outputs.output_filename }}
     steps:
       - uses: actions/checkout@v7
       - name: Detect temporary build data
@@ -48,15 +50,50 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [[ -f data/n3/wordlist.json ]]; then
+          if [[ -f data/deck-config.json && -f data/wordlist.json && -f data/corrections.json ]]; then
             echo "has_wordlist=true" >> "$GITHUB_OUTPUT"
           elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            echo "Temporary build data is absent. Add and validate data/n3/wordlist.json before manually starting this workflow." >&2
+            echo "Temporary build data is absent. Add deck-config.json, wordlist.json, and corrections.json under data/ before manually starting this workflow." >&2
             exit 1
           else
             echo "has_wordlist=false" >> "$GITHUB_OUTPUT"
             echo "Repository contains no wordlist data; skipping sample generation for this cleanup change."
           fi
+      - name: Read dynamic build metadata
+        id: metadata
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          config_path = Path("data/deck-config.json")
+          if config_path.is_file():
+              config = json.loads(config_path.read_text(encoding="utf-8"))
+              card_count = int(config["expected_total"])
+              shard_count = min(16, card_count)
+              values = {
+                  "card_count": card_count,
+                  "media_count": card_count * 3,
+                  "shard_count": shard_count,
+                  "shards": json.dumps(list(range(shard_count)), separators=(",", ":")),
+                  "artifact_name": config["artifact_name"],
+                  "output_filename": config["output_filename"],
+              }
+          else:
+              values = {
+                  "card_count": 0,
+                  "media_count": 0,
+                  "shard_count": 1,
+                  "shards": "[0]",
+                  "artifact_name": "wordbook-apkg",
+                  "output_filename": "wordbook.apkg",
+              }
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              for key, value in values.items():
+                  handle.write(f"{key}={value}\n")
+          PY
       - uses: actions/setup-python@v7
         if: ${{ steps.detect.outputs.has_wordlist == 'true' }}
         with:
@@ -72,7 +109,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        shard: ${{ fromJSON(needs.validate-wordlist.outputs.shards) }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -84,6 +121,7 @@ jobs:
           REQUESTED_MODE: ${{ inputs.mode }}
           REQUESTED_SAMPLE_SIZE: ${{ inputs.sample_size }}
           SHARD: ${{ matrix.shard }}
+          SHARD_COUNT: ${{ needs.validate-wordlist.outputs.shard_count }}
         run: |
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             mode="sample"
@@ -99,12 +137,12 @@ jobs:
           if [[ "$mode" == "full" ]]; then
             should_run="true"
             output_dir="build/audio-shard-${SHARD}"
-            artifact_name="n3-audio-shard-$(printf '%02d' "$SHARD")"
-            arguments="--shard-index $SHARD --shard-count 16"
+            artifact_name="audio-shard-$(printf '%02d' "$SHARD")"
+            arguments="--shard-index $SHARD --shard-count $SHARD_COUNT"
           else
             if [[ "$SHARD" == "0" ]]; then should_run="true"; else should_run="false"; fi
             output_dir="build/audio-sample"
-            artifact_name="n3-audio-sample"
+            artifact_name="audio-sample"
             arguments="--shard-index 0 --shard-count 1 --limit $sample_size"
           fi
           echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
@@ -132,12 +170,13 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ steps.plan.outputs.output_dir }}
-          key: n3-clean-pdf-edge-v2-${{ hashFiles('data/n3/wordlist.json') }}-${{ steps.plan.outputs.mode }}-${{ matrix.shard }}-${{ steps.plan.outputs.sample_size }}
+          key: japanese-wordbook-edge-${{ hashFiles('data/deck-config.json', 'data/wordlist.json') }}-${{ steps.plan.outputs.mode }}-${{ matrix.shard }}-${{ steps.plan.outputs.sample_size }}
       - name: Generate audio
         if: ${{ steps.plan.outputs.should_run == 'true' }}
         run: >-
-          python scripts/generate_n3_audio.py
-          --input data/n3/wordlist.json
+          python scripts/generate_audio.py
+          --config data/deck-config.json
+          --input data/wordlist.json
           --output-dir "${{ steps.plan.outputs.output_dir }}"
           ${{ steps.plan.outputs.arguments }}
           --concurrency 1
@@ -145,8 +184,9 @@ jobs:
       - name: Validate every MP3
         if: ${{ steps.plan.outputs.should_run == 'true' }}
         run: >-
-          python scripts/validate_n3_audio.py
-          --input data/n3/wordlist.json
+          python scripts/validate_audio.py
+          --config data/deck-config.json
+          --input data/wordlist.json
           --audio-dir "${{ steps.plan.outputs.output_dir }}"
           ${{ steps.plan.outputs.arguments }}
           --workers 8
@@ -161,8 +201,8 @@ jobs:
           if-no-files-found: error
 
   build-package:
-    needs: generate-audio
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'full' }}
+    needs: [validate-wordlist, generate-audio]
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'full' && needs.validate-wordlist.outputs.has_wordlist == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -178,26 +218,36 @@ jobs:
       - name: Download all audio shards
         uses: actions/download-artifact@v8
         with:
-          pattern: n3-audio-shard-*
+          pattern: audio-shard-*
           path: build/full-audio
           merge-multiple: true
       - name: Check the complete media set
+        shell: bash
+        env:
+          EXPECTED_MEDIA: ${{ needs.validate-wordlist.outputs.media_count }}
+          EXPECTED_MANIFESTS: ${{ needs.validate-wordlist.outputs.shard_count }}
         run: |
-          test "$(find build/full-audio -type f -name '*.mp3' | wc -l | tr -d ' ')" = "10200"
-          test "$(find build/full-audio -type f -name 'audio_manifest_shard_*.json' | wc -l | tr -d ' ')" = "16"
+          test "$(find build/full-audio -type f -name '*.mp3' | wc -l | tr -d ' ')" = "$EXPECTED_MEDIA"
+          test "$(find build/full-audio -type f -name 'audio_manifest_shard_*.json' | wc -l | tr -d ' ')" = "$EXPECTED_MANIFESTS"
       - name: Build complete APKG
         run: >-
-          python scripts/build_full_apkg.py
-          --input data/n3/wordlist.json
+          python scripts/build_apkg.py
+          --config data/deck-config.json
+          --input data/wordlist.json
           --audio-dir build/full-audio
-          --output "dist/无敌绿宝书-N3-3400词-EdgeTTS.apkg"
       - name: Validate complete APKG
-        run: python scripts/validate_full_apkg.py "dist/无敌绿宝书-N3-3400词-EdgeTTS.apkg"
-      - name: Upload complete APKG
+        env:
+          OUTPUT_FILENAME: ${{ needs.validate-wordlist.outputs.output_filename }}
+        run: python scripts/validate_apkg.py --config data/deck-config.json --input data/wordlist.json "dist/${OUTPUT_FILENAME}"
+      - name: Preserve rebuild identity with the package
+        run: cp data/deck-config.json dist/deck-config.json
+      - name: Upload complete APKG and configuration
         uses: actions/upload-artifact@v7
         with:
-          name: n3-0001-3400-edge-tts-apkg
-          path: "dist/无敌绿宝书-N3-3400词-EdgeTTS.apkg"
+          name: ${{ needs.validate-wordlist.outputs.artifact_name }}
+          path: |
+            dist/${{ needs.validate-wordlist.outputs.output_filename }}
+            dist/deck-config.json
           retention-days: 14
           compression-level: 0
           if-no-files-found: error
