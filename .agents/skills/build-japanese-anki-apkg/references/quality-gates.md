@@ -2,18 +2,26 @@
 
 Read this reference before starting a full build, auditing a downloaded APKG, or changing the data contract.
 
-## Canonical repository files
+## Repository-at-rest policy
+
+The default finished repository contains the Skill, scripts, templates, and workflow, but no complete wordlist, example-sentence dataset, correction dataset, wordlist workbook, generated audio, or APKG.
+
+During a build, wordlist-bearing files may be temporarily committed so GitHub Actions can read them. After the final APKG is validated and copied to durable storage, keep those files until the user explicitly confirms acceptance. Then remove them in a separate reviewed commit.
+
+An ordinary Git deletion removes files from the current tree, not from historical commits. Treat history rewriting as a separate high-impact operation requiring separate explicit authorization.
+
+## Temporary build files
 
 - `data/n3/wordlist_original.json`: immutable clean-PDF extraction.
 - `data/n3/wordlist.json`: corrected build input generated from the original plus structured corrections.
 - `data/n3/wordlist.csv`: reviewable full table.
 - `review/n3_translation_corrections.json`: replayable correction source.
 - `review/n3_translation_errata.csv`: human-readable correction table.
-- `artifacts/n3_wordlist_3400_with_errata.xlsx`: full table and errata workbook.
+- `artifacts/*.xlsx`: optional generated wordlist and errata workbooks.
 - `templates/front.html`, `templates/back.html`, `templates/style.css`: three-stage listening card.
 - `.github/workflows/generate-full-n3.yml`: sample and full Edge TTS workflow.
 
-The old 3256-card OCR data and its template fallback examples are not authoritative. Do not revive or publish them as the final deck.
+These paths are inputs and derived data during a build, not permanent repository content. The old 3256-card OCR data and its template fallback examples are not authoritative. Do not revive or publish them as the final deck.
 
 ## Stable data invariants
 
@@ -79,3 +87,15 @@ Require all of the following before reporting completion:
 9. The delivered copy has the same checksum as the downloaded validated artifact.
 
 Manual import and interaction checks in the user's actual Anki client remain a separate experience-level acceptance step; report them as pending until performed.
+
+## Cleanup evidence after user confirmation
+
+Require all of the following before reporting repository cleanup complete:
+
+1. The user explicitly confirmed acceptance of the delivered APKG and authorized repository-data deletion.
+2. The exact deletion list was shown before removal.
+3. The APKG and any user-requested workbook remain in durable storage outside the repository.
+4. `git diff --cached --name-status` or the final commit shows only the intended data removal and related documentation/workflow updates.
+5. The target branch no longer tracks files under `data/`, `review/`, or wordlist-bearing files under `artifacts/`.
+6. Scripts, templates, workflows, and `.agents/skills/build-japanese-anki-apkg/` remain present.
+7. The user is told that historical commits still retain prior data unless a separately authorized history rewrite is performed.

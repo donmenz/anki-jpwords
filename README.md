@@ -1,75 +1,85 @@
-# anki-jpwords · JLPT N3 3400 词
+# Build Japanese Anki APKG Skill
 
-本仓库以清晰版《无敌绿宝书》PDF 为底稿，保存完整 N3 词表、原书例句、中文翻译勘误，以及通过 GitHub Actions 生成 Edge TTS 全量 Anki 卡组的流程。
+这个仓库以可复用的 Codex / ChatGPT Skill 为核心，指导代理把经过校验的日语词表转换为带 Edge TTS 音频的 Anki `.apkg`，监控 GitHub Actions 全量构建，下载并验收成品，并在用户确认交付后清理仓库中的词表数据。
 
-## 当前数据
+仓库默认只保存：
 
-- 3400 个连续词条：`n3_0001` 至 `n3_3400`
-- 32 个单元，单元数量与原书一致
-- 3254 个原书例句及原书中译
-- 第 32 单元 146 个补充词；原书没有提供例句
-- 47 条已确认勘误：实质误译、词义修正、措辞优化及 7 条习题文本串入清理
-- 最终卡组使用修订译文，同时保留原书中译供对照
+- Skill 工作流与质量门槛；
+- APKG、音频和数据校验脚本；
+- 三阶段听辨卡片模板；
+- GitHub Actions 构建流程。
 
-主要文件：
+仓库默认不保存完整词表、原书例句、翻译勘误、生成音频或 APKG 成品。
 
-- `data/n3/wordlist_original.json`：清晰 PDF 的原始提取结果
-- `data/n3/wordlist.json`：应用勘误后的最终构建数据
-- `data/n3/wordlist.csv`：可直接用表格软件打开的全量词表
-- `review/n3_translation_corrections.json`：可重复应用的结构化修订
-- `review/n3_translation_errata.csv`：47 条中文翻译勘误
-- `artifacts/n3_wordlist_3400_with_errata.xlsx`：全量词表与勘误 Excel
+## 使用 Skill
 
-重新应用修订并校验：
+在包含本仓库的 Codex 任务中输入：
 
-```bash
-python scripts/apply_translation_corrections.py
-python scripts/validate_wordlist.py
+```text
+$build-japanese-anki-apkg
 ```
 
-## GitHub Actions 生成全量 APKG
+ChatGPT 桌面端也可以在 **Skills** 侧栏找到 **Build Japanese Anki APKG**，或在聊天框使用 `@` 选择它。
 
-工作流名称为 **Generate Full N3 Audio**。拉取请求会自动生成 4 张样卡；正式全量构建需要在 `main` 手动触发：
+Skill 文件位于：
 
-1. 打开仓库的 **Actions** 页面。
-2. 选择 **Generate Full N3 Audio**。
-3. 点击 **Run workflow**，分支选 `main`。
-4. `mode` 选择 `full` 后运行。
-5. 完成后下载 `n3-0001-3400-edge-tts-apkg`。
-
-音频参数：
-
-- 声音：Microsoft Edge TTS `ja-JP-NanamiNeural`
-- 语速：`-10%`（约 0.90×）
-- 后处理：FFmpeg `loudnorm`，24 kHz、单声道、96 kbps
-- 每张卡 3 个 MP3：单词两遍、例句一遍、例句两遍
-- 第 32 单元没有原书例句，因此两个“例句”音频槽使用单词读音
-- 全量共 10200 个 MP3，拆为 16 个可恢复分片，并行上限为 4
-
-最终工作流会验证全部音频，再构建 `无敌绿宝书-N3-3400词-EdgeTTS.apkg`，并检查 3400 个笔记、3400 张卡片、连续 ID 和 10200 个媒体文件。
-
-## 卡片模板
-
-卡片沿用此前确定的三阶段听辨模板：
-
-- 第一阶段只听音频
-- 第二阶段显示原书日语例句
-- 第三阶段显示大号假名、词头、中文释义及修订后的例句中译
-- 点击词块或例句即可播放
-- 长词保持单行显示
-- 第 32 单元显示“原书未提供例句”，保留单词训练
-
-本版使用独立的 Anki 模型、牌组 ID 与 GUID 前缀，可与早期 3256 词实验版及原书配音版共存，不会互相覆盖。
-
-## 旧版 50 卡构建
-
-早期 `n3_0125`–`n3_0174` 的 50 卡脚本仍保留作参考：
-
-```bash
-sudo apt-get install ffmpeg
-python -m pip install -r requirements.txt
-python scripts/build_apkg.py
-python scripts/validate_apkg.py "dist/无敌绿宝书-N3-0125至0174.apkg"
+```text
+.agents/skills/build-japanese-anki-apkg/
+├── SKILL.md
+├── agents/openai.yaml
+└── references/quality-gates.md
 ```
 
-源 PDF 和生成的 MP3 不提交到仓库；GitHub Actions 产物默认保留 14 天。
+## Skill 覆盖的流程
+
+1. 接收并核对用户提供的词表、原书例句和翻译修订。
+2. 保留原始数据与修订数据的来源关系，禁止用模板句冒充原书例句。
+3. 在构建期间将数据临时放入约定目录。
+4. 重放修订并验证完整词表。
+5. 先通过样卡检查模板与 TTS。
+6. 在 GitHub Actions 中分片生成全量 Edge TTS 音频并构建 APKG。
+7. 下载 APKG，验证卡片、媒体、字段、代表性勘误和音频编码。
+8. 将验收后的 APKG 保存到用户指定的持久化目录。
+9. 等待用户明确确认成品可用。
+10. 仅在用户确认后，从仓库当前分支删除词表、勘误和含词条的工作簿，并提交清理改动。
+
+## 临时数据约定
+
+构建期间使用以下路径：
+
+```text
+data/n3/wordlist_original.json
+data/n3/wordlist.json
+data/n3/wordlist.csv
+review/n3_translation_corrections.json
+review/n3_translation_errata.csv
+artifacts/*.xlsx
+```
+
+这些文件可以为了 GitHub Actions 构建而临时进入仓库，但不是仓库的长期内容。构建脚本不会在数据缺失时伪造默认词条；手动触发全量 Action 而没有 `data/n3/wordlist.json` 会明确失败。清理 PR 删除数据时，Action 只报告仓库已回到无词表状态，不会尝试生成样卡。
+
+普通删除提交只会把数据从当前 `main` 文件树移除，历史提交仍可能包含旧版本。如果需要从 Git 历史永久擦除，必须单独评估影响并取得用户明确授权后再进行历史重写。
+
+## 保留的构建组件
+
+- `.github/workflows/generate-full-n3.yml`：样卡和全量 Edge TTS/APKG 工作流。
+- `scripts/apply_translation_corrections.py`：重放结构化翻译修订。
+- `scripts/validate_wordlist.py`：验证完整 N3 数据。
+- `scripts/generate_n3_audio.py`：生成可恢复音频分片。
+- `scripts/validate_n3_audio.py`：逐个检查 MP3。
+- `scripts/build_full_apkg.py`：构建全量 APKG。
+- `scripts/validate_full_apkg.py`：验证最终牌组。
+- `templates/`：三阶段听辨卡片模板。
+
+## 当前 N3 构建契约
+
+- 3400 个连续 ID：`n3_0001`–`n3_3400`
+- 3254 条原书例句
+- 第 32 单元 146 个原书无例句补充词
+- 3400 个笔记、3400 张卡片
+- 每张卡 3 个 MP3，共 10200 个媒体文件
+- Edge TTS：`ja-JP-NanamiNeural`，语速 `-10%`
+- 输出：24 kHz、单声道、96 kbps MP3
+- 正式 Action 制品：`n3-0001-3400-edge-tts-apkg`
+
+详细的身份、音频与验收规则以 `.agents/skills/build-japanese-anki-apkg/references/quality-gates.md` 为准。

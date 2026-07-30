@@ -1,6 +1,6 @@
 ---
 name: build-japanese-anki-apkg
-description: Build, rebuild, download, or audit the complete JLPT N3 Anki APKG in this repository, including replaying translation corrections, validating all 3400 source-grounded entries, running and monitoring the GitHub Actions Edge TTS pipeline, and verifying the final deck and audio. Use when asked to generate, regenerate, publish, troubleshoot, download, or validate this project's N3 APKG or full audio workflow; do not use for general Anki advice or unrelated decks.
+description: Build, rebuild, download, audit, and safely clean up the complete JLPT N3 Anki APKG workflow in this repository, including staging temporary wordlist data, replaying translation corrections, validating all 3400 source-grounded entries, running GitHub Actions Edge TTS, verifying the final deck, and deleting repository wordlist data only after explicit user confirmation. Use when asked to generate, regenerate, publish, troubleshoot, download, validate, or clean up this project's N3 APKG workflow; do not use for general Anki advice or unrelated decks.
 ---
 
 # Build Japanese Anki APKG
@@ -15,29 +15,33 @@ Before a full build or APKG audit, read [references/quality-gates.md](references
 2. Read `README.md` and any current `HANDOFF*.md` available in the workspace.
 3. Inspect `git status -sb`, the active branch, the remote, and the latest commit before changing anything.
 4. Preserve unrelated user changes. Never stage, overwrite, or discard them silently.
-5. Treat GitHub `main` as the build-code truth. Treat `data/n3/wordlist_original.json` as immutable extracted source data and `data/n3/wordlist.json` as generated build data.
+5. Treat GitHub `main` as the build-code truth. Expect the default repository tree to contain no complete wordlist data after a finished delivery.
+6. If build data is present, treat `data/n3/wordlist_original.json` as immutable extracted source data and `data/n3/wordlist.json` as generated build data.
 
 ## Choose the smallest workflow
 
+- For a new build in a clean repository, stage the user-provided source data in the temporary paths from the quality-gates reference before running any generator.
 - For a translation correction, update `review/n3_translation_corrections.json`, replay corrections, validate the wordlist, and review the generated diff.
 - For a template or TTS change, run or inspect the four-card sample path before authorizing a full build.
 - For a full build with no code change, validate the current `main`, dispatch the full workflow, monitor it to completion, download the artifact, and validate it locally.
 - For an existing successful run, skip generation and proceed to artifact download and final validation.
 - For diagnosis only, inspect and report the failure cause. Do not implement or rerun unless the user requested a fix or completion.
+- For cleanup after a completed build, require explicit user confirmation before deleting any repository data.
 
 ## Prepare source data
 
-1. Add structured corrections to `review/n3_translation_corrections.json`; include the reviewed translation, reason, category, severity, and source.
-2. Do not replace original translations or examples merely to hide a correction.
-3. Never fabricate an example for a row whose source has no example. Keep it explicitly marked as source-missing.
-4. Replay and validate:
+1. Place the user's extracted source at `data/n3/wordlist_original.json` and structured corrections at `review/n3_translation_corrections.json`. Use an empty JSON array for corrections when none exist.
+2. Add corrections with the reviewed translation, reason, category, severity, and source.
+3. Do not replace original translations or examples merely to hide a correction.
+4. Never fabricate an example for a row whose source has no example. Keep it explicitly marked as source-missing.
+5. Replay and validate:
 
 ```bash
 python scripts/apply_translation_corrections.py
 python scripts/validate_wordlist.py
 ```
 
-5. Review changes to the corrected JSON, CSV, errata files, and workbook. Confirm that mutable correction counts are internally consistent; do not assume the historical count is permanent.
+6. Review changes to the corrected JSON, CSV, errata files, and any generated workbook. Confirm that mutable correction counts are internally consistent; do not assume the historical count is permanent.
 
 Stop before audio generation if wordlist validation fails or source provenance is unresolved.
 
@@ -78,6 +82,25 @@ shasum -a 256 "path/to/无敌绿宝书-N3-3400词-EdgeTTS.apkg"
 5. Probe representative word, sentence, and source-missing fallback MP3 files with `ffprobe`.
 6. Copy the validated APKG and current workbook to the user's durable delivery directory only when that destination is in scope. Verify the copied checksum.
 
+## Remove repository wordlist data after confirmation
+
+Treat cleanup as a separate destructive phase after successful delivery.
+
+1. Show the user the delivered APKG path, checksum, validation result, and the exact tracked data paths proposed for deletion.
+2. Ask for explicit confirmation that the APKG is accepted and the repository data may be removed. Do not infer confirmation from silence, a successful Action, or a prior request to generate the deck.
+3. Until confirmation arrives, preserve the repository data so the build remains reproducible.
+4. After confirmation, delete only tracked wordlist-bearing paths such as:
+   - `data/n3/wordlist_original.json`
+   - `data/n3/wordlist.json`
+   - `data/n3/wordlist.csv`
+   - `review/n3_translation_corrections.json`
+   - `review/n3_translation_errata.csv`
+   - wordlist workbooks under `artifacts/`
+5. Preserve scripts, templates, the Skill, workflows, and validated files in the user's external delivery directory.
+6. Review the deletion diff, commit it on a scoped branch, publish it through a PR, and merge only when authorized.
+7. Verify the target branch no longer tracks wordlist-bearing files.
+8. State that a normal deletion commit removes data from the current tree but not from Git history. Never rewrite history without separate explicit authorization after explaining clone, fork, tag, release, and force-push impact.
+
 ## Report completion
 
 Lead with whether the complete deck is ready. Include:
@@ -89,6 +112,7 @@ Lead with whether the complete deck is ready. Include:
 - source-example and source-missing counts;
 - confirmed correction count, clearly described as confirmed rather than exhaustive;
 - GitHub PR, merge commit, and full workflow URL when publication occurred;
+- whether repository wordlist cleanup is pending confirmation or completed;
 - any remaining real-device Anki import or interaction check.
 
 State incomplete boundaries plainly. A structurally valid APKG is not proof that every translation has received exhaustive human review.
