@@ -1,4 +1,4 @@
 interface:
   display_name: "Build Japanese Anki APKG"
-  short_description: "校验词表、生成 Edge TTS 并交付全量 APKG"
-  default_prompt: "Use $build-japanese-anki-apkg to validate this repository and build a complete, verified N3 APKG."
+  short_description: "生成、验收完整 APKG，并在用户确认后安全清理仓库词表数据"
+  default_prompt: "Use $build-japanese-anki-apkg to build and verify the N3 APKG, then remove repository wordlist data only after I confirm."

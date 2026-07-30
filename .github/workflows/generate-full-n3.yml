@@ -38,15 +38,36 @@ concurrency:
 jobs:
   validate-wordlist:
     runs-on: ubuntu-latest
+    outputs:
+      has_wordlist: ${{ steps.detect.outputs.has_wordlist }}
     steps:
       - uses: actions/checkout@v7
+      - name: Detect temporary build data
+        id: detect
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [[ -f data/n3/wordlist.json ]]; then
+            echo "has_wordlist=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "Temporary build data is absent. Add and validate data/n3/wordlist.json before manually starting this workflow." >&2
+            exit 1
+          else
+            echo "has_wordlist=false" >> "$GITHUB_OUTPUT"
+            echo "Repository contains no wordlist data; skipping sample generation for this cleanup change."
+          fi
       - uses: actions/setup-python@v7
+        if: ${{ steps.detect.outputs.has_wordlist == 'true' }}
         with:
           python-version: "3.12"
-      - run: python scripts/validate_wordlist.py
+      - name: Validate wordlist
+        if: ${{ steps.detect.outputs.has_wordlist == 'true' }}
+        run: python scripts/validate_wordlist.py
 
   generate-audio:
     needs: validate-wordlist
+    if: ${{ needs.validate-wordlist.outputs.has_wordlist == 'true' }}
     strategy:
       fail-fast: false
       max-parallel: 4
