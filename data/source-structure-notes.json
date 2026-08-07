@@ -1,0 +1,114 @@
+{
+  "source_file": "最新版 无敌绿宝书 N1词汇.pdf",
+  "source_sha256": "f1b87667c7d1d05448c97adb95e99a6819e55d427018ffba1935c2bca745ace6",
+  "source_bytes": 972172553,
+  "pdf_pages": 341,
+  "isbn": "9787519281168",
+  "edition": "2021年8月第2版",
+  "printing": "2022年9月第16次印刷",
+  "book_to_pdf_page_offset": 7,
+  "source_statements": [
+    {
+      "pdf_page": 4,
+      "text": "收录4214个必考词和基础词，同时收录613个超纲词，总计词汇量达4827个。"
+    },
+    {
+      "pdf_page": 6,
+      "section": "必考词",
+      "declared_count": 2809,
+      "printed_number_range": [1, 2809],
+      "pdf_page_range": [8, 208]
+    },
+    {
+      "pdf_page": 7,
+      "section": "基础词",
+      "declared_count": 1405,
+      "printed_number_range": [1, 1405],
+      "pdf_page_range": [209, 295]
+    },
+    {
+      "pdf_page": 7,
+      "section": "超纲词",
+      "declared_count": 613,
+      "observed_printed_count": 612,
+      "printed_number_range": null,
+      "pdf_page_range": [296, 306],
+      "decision": "The declaration is one higher than the 612 unique printed green headwords. Preserve the 612 printed entries and do not fabricate a 613th row."
+    }
+  ],
+  "observed_boundaries": [
+    {
+      "pdf_page": 208,
+      "book_page": 201,
+      "last_section": "必考词",
+      "last_printed_number": 2809,
+      "last_word": "路上"
+    },
+    {
+      "pdf_page": 209,
+      "book_page": 202,
+      "first_section": "基础词",
+      "first_printed_number": 1,
+      "first_word": "唖然"
+    },
+    {
+      "pdf_page": 295,
+      "book_page": 288,
+      "last_section": "基础词",
+      "last_printed_number": 1405,
+      "last_word": "林業"
+    },
+    {
+      "pdf_page": 296,
+      "book_page": 289,
+      "first_section": "超纲词"
+    },
+    {
+      "pdf_page": 306,
+      "book_page": 299,
+      "last_section": "超纲词"
+    },
+    {
+      "pdf_page": 307,
+      "book_page": 300,
+      "content": "blank"
+    },
+    {
+      "pdf_page": 308,
+      "book_page": 301,
+      "content": "appendix title"
+    }
+  ],
+  "advanced_printed_counts_by_pdf_page": {
+    "296": 48,
+    "297": 67,
+    "298": 64,
+    "299": 62,
+    "300": 63,
+    "301": 59,
+    "302": 54,
+    "303": 61,
+    "304": 60,
+    "305": 59,
+    "306": 15
+  },
+  "numbering_errata": [
+    {
+      "section": "必考词",
+      "logical_source_number": 2270,
+      "printed_source_number": 2279,
+      "pdf_page": 173,
+      "word": "早々",
+      "decision": "The source sequence runs 2268, 2269, printed 2279, 2271, 2272. Preserve logical order 2270 and record the printed typo separately."
+    },
+    {
+      "section": "基础词",
+      "logical_source_number": 1324,
+      "printed_source_number": 1321,
+      "pdf_page": 290,
+      "word": "構える",
+      "decision": "The source sequence runs 1321, 1322, 1323, printed 1321, 1325, 1326. Preserve logical order 1324 and record the printed typo separately."
+    }
+  ],
+  "count_policy": "Use every unique printed entry in source order. The 612 advanced rows were counted by green headword bands, de-duplicated by coordinate, mapped to Vision text, and cross-checked against PaddleOCR headers."
+}
