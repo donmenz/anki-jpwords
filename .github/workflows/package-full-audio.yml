@@ -1,0 +1,76 @@
+name: Package N1-N3 Full Audio
+
+on:
+  workflow_dispatch:
+    inputs:
+      n1_run_id:
+        description: Completed N1 audio run ID
+        required: true
+        type: string
+        default: "31292639140"
+      n2_run_id:
+        description: Completed N2 audio run ID
+        required: true
+        type: string
+        default: "31292268759"
+      n3_run_id:
+        description: Completed N3 audio run ID
+        required: true
+        type: string
+        default: "31292640276"
+
+permissions:
+  actions: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download audio artifacts from completed runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          N1_RUN_ID: ${{ inputs.n1_run_id }}
+          N2_RUN_ID: ${{ inputs.n2_run_id }}
+          N3_RUN_ID: ${{ inputs.n3_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/full-audio"
+          mkdir -p "$root"
+          for spec in "N1:$N1_RUN_ID" "N2:$N2_RUN_ID" "N3:$N3_RUN_ID"; do
+            level="${spec%%:*}"
+            run_id="${spec##*:}"
+            dest="$root/$level"
+            mkdir -p "$dest"
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/$run_id/artifacts" \
+              --jq '.artifacts[] | select(.expired == false and (.name | test("^(audio-shard|n3-audio-shard)-"))) | [.id,.name] | @tsv' \
+              | while IFS=$'\t' read -r artifact_id artifact_name; do
+                  echo "Downloading $level/$artifact_name"
+                  gh api -H 'Accept: application/vnd.github+json' \
+                    "repos/${GITHUB_REPOSITORY}/actions/artifacts/$artifact_id/zip" > "$RUNNER_TEMP/artifact.zip"
+                  unzip -q -o "$RUNNER_TEMP/artifact.zip" -d "$dest"
+                done
+          done
+
+      - name: Verify and create one ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/full-audio"
+          for level in N1 N2 N3; do
+            count=$(find "$root/$level" -type f -name '*.mp3' | wc -l | tr -d ' ')
+            test "$count" -gt 0
+            echo "$level MP3 files: $count"
+          done
+          mkdir -p "$RUNNER_TEMP/package"
+          ditto "$root" "$RUNNER_TEMP/package/N1-N2-N3-audio"
+          (cd "$RUNNER_TEMP/package" && zip -qr "$GITHUB_WORKSPACE/N1-N2-N3-full-audio.zip" N1-N2-N3-audio)
+          shasum -a 256 "$GITHUB_WORKSPACE/N1-N2-N3-full-audio.zip"
+
+      - name: Upload one full-audio ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: N1-N2-N3-full-audio
+          path: N1-N2-N3-full-audio.zip
+          if-no-files-found: error
+          retention-days: 30
