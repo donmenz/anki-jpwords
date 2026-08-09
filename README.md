@@ -1,42 +1,25 @@
-# anki-jpwords · JLPT N3
+# anki-jpwords · N3 归档版音频构建
 
-This repository contains a complete, reviewable JLPT N3 vocabulary dataset
-recovered from 《无敌绿宝书》 and prepared for a later GitHub-based audio and
-Anki build.
+This temporary build branch generates unit audio from the archived,
+source-faithful 3,400-row vocabulary table.
 
 ## Current dataset
 
-- 3,256 continuous cards: `n3_0001` through `n3_3256`
-- 31 units
-- Every card has a headword, reading, part of speech, Chinese meaning,
-  Japanese example sentence, and Chinese example translation
-- Example provenance and review status are stored per card
-- Audio has **not** been generated for the full dataset yet
+- 3,400 continuous rows: `n3_0001` through `n3_3400`
+- 32 units
+- 3,254 original-book examples
+- 146 rows explicitly marked as having no example in the source
+- Unit audio order: word twice, then example twice
+- Source-missing example slots repeat the reading instead of inventing a sentence
 
 Files:
 
 - `data/n3/wordlist.json` — complete dataset
-- `data/n3/batches/` — four non-overlapping GitHub-processing batches
-- `data/n3/quality_summary.json` — source and review counts
-- `artifacts/n3_wordlist_3256.xlsx` — filterable review workbook
+- `.github/workflows/generate-full-n3.yml` — validation, 16 audio shards,
+  32 unit MP3 files, and one downloadable ZIP
 
-## Review status
-
-The dataset is structurally complete, but it is not represented as a fully
-human-reviewed edition. The workbook and JSON retain two independent statuses:
-
-- `review_status` for example sentences
-- `lexical_review_status` for headword, reading, part of speech, and meaning
-
-Current example sources:
-
-- 1,968 Tatoeba Japanese-Chinese direct pairs
-- 601 Tatoeba examples linked through the same English sentence
-- 432 examples retained from the source book
-- 255 generated fallback examples
-
-Tatoeba indirect pairs, OCR-derived source examples, and generated examples
-remain explicitly marked for review before full audio generation.
+The archived table retains original and reviewed Chinese text plus correction
+status. It does not fill source-missing rows with generated Japanese examples.
 
 ## Validate the wordlist
 
@@ -46,8 +29,8 @@ No third-party package is required:
 python scripts/validate_wordlist.py
 ```
 
-The validator checks row count, continuous IDs, required fields, placeholder
-sentences, and the four batch boundaries.
+The validator checks row count, continuous IDs, 32 unit counts, required fields,
+source-example invariants, and source-missing invariants.
 
 ## Generate the complete audio deck on GitHub
 
@@ -60,7 +43,7 @@ shards, with at most four shards running in parallel.
 3. Choose **Run workflow** on `main`.
 4. Run `sample` first (the default, eight cards).
 5. After the sample artifact is checked, run again with mode `full`.
-6. Download the `n3-0001-3256-apkg` artifact after all jobs finish.
+6. Download the `n3-3400-unit-audio-zip` artifact after all jobs finish.
 
 Each card produces three 24 kHz mono MP3 files:
 
@@ -68,8 +51,8 @@ Each card produces three 24 kHz mono MP3 files:
 - sentence played once
 - sentence played twice
 
-The complete run validates all 9,768 MP3 files, builds the 3,256-card APKG,
-and validates its notes, cards, IDs, and media table. Successful shards are
+The complete run validates all 10,200 card-level MP3 files, builds 32 unit MP3
+files, and packages them as `N3-3400词-32单元音频.zip`. Successful shards are
 cached, so a later rerun can reuse completed audio for the same wordlist.
 
 Generated artifacts are retained for 14 days. The workflow uses Microsoft

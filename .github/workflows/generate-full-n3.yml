@@ -1,4 +1,4 @@
-name: Generate Full N3 Audio
+name: Generate N3 3400 Unit Audio
 
 on:
   workflow_dispatch:
@@ -152,6 +152,8 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Download all audio shards
@@ -162,21 +164,83 @@ jobs:
           merge-multiple: true
       - name: Check the complete media set
         run: |
-          test "$(find build/full-audio -type f -name '*.mp3' | wc -l | tr -d ' ')" = "9768"
+          test "$(find build/full-audio -type f -name '*.mp3' | wc -l | tr -d ' ')" = "10200"
           test "$(find build/full-audio -type f -name 'audio_manifest_shard_*.json' | wc -l | tr -d ' ')" = "16"
-      - name: Build complete APKG
-        run: >-
-          python scripts/build_full_apkg.py
-          --input data/n3/wordlist.json
-          --audio-dir build/full-audio
-          --output "dist/无敌绿宝书-N3-0001至3256.apkg"
-      - name: Validate complete APKG
-        run: python scripts/validate_full_apkg.py "dist/无敌绿宝书-N3-0001至3256.apkg"
-      - name: Upload complete APKG
+      - name: Build and validate 32 unit MP3 files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/unit-lists dist/N3
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows = json.loads(Path("data/n3/wordlist.json").read_text(encoding="utf-8"))
+          audio = Path("build/full-audio").resolve()
+          lists = Path("build/unit-lists")
+          expected_counts = {
+              1: 106, 2: 119, 3: 104, 4: 91, 5: 143, 6: 144, 7: 105, 8: 119,
+              9: 86, 10: 110, 11: 84, 12: 97, 13: 95, 14: 92, 15: 103, 16: 101,
+              17: 96, 18: 118, 19: 74, 20: 126, 21: 95, 22: 107, 23: 105, 24: 106,
+              25: 83, 26: 106, 27: 96, 28: 112, 29: 106, 30: 130, 31: 95, 32: 146,
+          }
+          for unit, expected in expected_counts.items():
+              selected = [row for row in rows if int(row["unit"]) == unit]
+              if len(selected) != expected:
+                  raise SystemExit(f"unit {unit}: expected {expected} rows, got {len(selected)}")
+              with (lists / f"{unit:02d}.txt").open("w", encoding="utf-8") as handle:
+                  for row in selected:
+                      for suffix in ("word_x2", "sentence_x2"):
+                          path = audio / f"{row['id']}_{suffix}.mp3"
+                          if not path.is_file():
+                              raise SystemExit(f"missing {path}")
+                          handle.write(f"file '{path}'\n")
+              print(f"unit {unit}: {len(selected)} cards")
+          PY
+          for unit in $(seq 1 32); do
+            list="build/unit-lists/$(printf '%02d' "$unit").txt"
+            output="dist/N3/第${unit}单元.mp3"
+            ffmpeg -y -hide_banner -loglevel error -f concat -safe 0 -i "$list" \
+              -c:a libmp3lame -b:a 96k -ar 24000 -ac 1 "$output"
+            ffprobe -v error -select_streams a:0 \
+              -show_entries stream=sample_rate,channels:format=duration \
+              -of json "$output" > "dist/N3/第${unit}单元.ffprobe.json"
+          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          probes = sorted(Path("dist/N3").glob("第*单元.ffprobe.json"))
+          if len(probes) != 32:
+              raise SystemExit(f"expected 32 probe reports, got {len(probes)}")
+          for path in probes:
+              payload = json.loads(path.read_text(encoding="utf-8"))
+              stream = payload["streams"][0]
+              duration = float(payload["format"]["duration"])
+              if int(stream["sample_rate"]) != 24000 or int(stream["channels"]) != 1 or duration <= 0:
+                  raise SystemExit(f"invalid unit audio: {path.name}: {payload}")
+          print("PASS: 32 unit MP3 files are 24 kHz mono with positive duration")
+          PY
+          test "$(find dist/N3 -type f -name '第*单元.mp3' | wc -l | tr -d ' ')" = "32"
+          (cd dist && zip -qr "N3-3400词-32单元音频.zip" N3 -x 'N3/*.ffprobe.json')
+          sha256sum dist/N3-3400词-32单元音频.zip | tee dist/SHA256SUMS.txt
+          {
+            echo "source_rows=3400"
+            echo "units=32"
+            echo "original_examples=3254"
+            echo "source_missing_examples=146"
+            echo "voice=ja-JP-NanamiNeural"
+            echo "rate=-10%"
+            echo "sequence=word_x2 + sentence_x2"
+          } > dist/BUILD-REPORT.txt
+      - name: Upload N3 full-book unit audio ZIP
         uses: actions/upload-artifact@v7
         with:
-          name: n3-0001-3256-apkg
-          path: "dist/无敌绿宝书-N3-0001至3256.apkg"
-          retention-days: 14
+          name: n3-3400-unit-audio-zip
+          path: |
+            dist/N3-3400词-32单元音频.zip
+            dist/BUILD-REPORT.txt
+            dist/SHA256SUMS.txt
+          retention-days: 30
           compression-level: 0
           if-no-files-found: error

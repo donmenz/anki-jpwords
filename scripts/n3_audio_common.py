@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 
 
-EXPECTED_TOTAL = 3256
+EXPECTED_TOTAL = 3400
 AUDIO_SUFFIXES = ("word_x2", "sentence_x1", "sentence_x2")
 MODEL_ID = 1889930905
 DECK_ID = 1889930906
@@ -34,17 +34,12 @@ FIELDS = [
 ]
 REQUIRED_SOURCE_FIELDS = (
     "id",
-    "level",
     "unit",
-    "book_page",
-    "pdf_page",
     "word",
     "reading",
     "part_of_speech",
     "meaning_zh",
-    "sentence_ja",
-    "sentence_zh_reviewed",
-    "sentence_zh_original",
+    "has_original_sentence",
     "translation_status",
     "translation_note",
 )
@@ -59,11 +54,21 @@ def load_wordlist(path: Path) -> list[dict[str, object]]:
     expected_ids = [f"n3_{number:04d}" for number in range(1, EXPECTED_TOTAL + 1)]
     actual_ids = [str(row.get("id", "")) for row in rows]
     if actual_ids != expected_ids:
-        raise ValueError("IDs must be continuous from n3_0001 through n3_3256")
+        raise ValueError("IDs must be continuous from n3_0001 through n3_3400")
     for row in rows:
-        missing = [field for field in REQUIRED_SOURCE_FIELDS if not str(row.get(field, "")).strip()]
+        missing = [
+            field for field in REQUIRED_SOURCE_FIELDS
+            if field != "has_original_sentence" and not str(row.get(field, "")).strip()
+        ]
         if missing:
             raise ValueError(f"{row.get('id', '<unknown>')} has empty fields: {missing}")
+        if not isinstance(row.get("has_original_sentence"), bool):
+            raise ValueError(f"{row.get('id', '<unknown>')} has invalid has_original_sentence")
+        sentence = str(row.get("sentence_ja", "")).strip()
+        if row["has_original_sentence"] and not sentence:
+            raise ValueError(f"{row['id']} is missing its original Japanese sentence")
+        if not row["has_original_sentence"] and sentence:
+            raise ValueError(f"{row['id']} must keep its source-missing sentence empty")
     return rows
 
 

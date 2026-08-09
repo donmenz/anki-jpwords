@@ -119,7 +119,8 @@ async def generate_card(
         if not valid_audio(word_x2):
             await synthesize(word_audio_text(row), word_x1, retries)
             await make_double(word_x1, word_x2)
-        await synthesize(str(row["sentence_ja"]), sentence_x1, retries)
+        sentence_text = str(row.get("sentence_ja", "")).strip() or word_audio_text(row)
+        await synthesize(sentence_text, sentence_x1, retries)
         await make_double(sentence_x1, sentence_x2)
         word_x1.unlink(missing_ok=True)
 
