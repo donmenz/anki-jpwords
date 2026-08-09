@@ -63,7 +63,7 @@ jobs:
             echo "$level MP3 files: $count"
           done
           mkdir -p "$RUNNER_TEMP/package"
-          ditto "$root" "$RUNNER_TEMP/package/N1-N2-N3-audio"
+          cp -a "$root" "$RUNNER_TEMP/package/N1-N2-N3-audio"
           (cd "$RUNNER_TEMP/package" && zip -qr "$GITHUB_WORKSPACE/N1-N2-N3-full-audio.zip" N1-N2-N3-audio)
           shasum -a 256 "$GITHUB_WORKSPACE/N1-N2-N3-full-audio.zip"
 
