@@ -1,69 +1,45 @@
-name: Package One Japanese Audio Unit
-"on":
+name: Package One N3 Unit Audio
+on:
   workflow_dispatch:
-    inputs:
-      level:
-        description: Book level
-        required: true
-        type: choice
-        options: [N1, N2, N3]
-        default: N3
-      unit:
-        description: Unit number
-        required: true
-        type: string
-        default: "1"
-      n1_run_id: {description: Completed N1 audio run ID, required: true, type: string, default: "31292639140"}
-      n2_run_id: {description: Completed N2 audio run ID, required: true, type: string, default: "31292268759"}
-      n3_run_id: {description: Completed N3 audio run ID, required: true, type: string, default: "31292640276"}
-permissions: {actions: read, contents: read}
+permissions:
+  actions: read
+  contents: read
 jobs:
   package:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Download selected level audio and source list
+      - name: Download N3 audio shards and source list
         env:
           GH_TOKEN: ${{ github.token }}
-          LEVEL: ${{ inputs.level }}
-          N1_RUN_ID: ${{ inputs.n1_run_id }}
-          N2_RUN_ID: ${{ inputs.n2_run_id }}
-          N3_RUN_ID: ${{ inputs.n3_run_id }}
         run: |
           set -euo pipefail
-          case "$LEVEL" in
-            N1) run_id="$N1_RUN_ID"; re='^audio-shard-'; branch='build/n1-green-book'; prefix='n1gb2021';;
-            N2) run_id="$N2_RUN_ID"; re='^audio-shard-'; branch='main'; prefix='n2gb2022';;
-            N3) run_id="$N3_RUN_ID"; re='^n3-audio-shard-'; branch='agent/full-n3-audio-workflow'; prefix='n3';;
-          esac
           mkdir -p "$RUNNER_TEMP/audio" "$RUNNER_TEMP/source"
-          gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/$run_id/artifacts" --jq '.artifacts[] | select(.expired == false) | [.id,.name] | @tsv' | while IFS=$'\t' read -r id name; do
-            if [[ "$name" =~ $re ]]; then gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id/zip" > "$RUNNER_TEMP/artifact.zip"; unzip -q -o "$RUNNER_TEMP/artifact.zip" -d "$RUNNER_TEMP/audio"; fi
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/31292640276/artifacts" --jq '.artifacts[] | select(.expired == false and (.name | startswith("n3-audio-shard-"))) | [.id,.name] | @tsv' | while IFS=$'\t' read -r id name; do
+            gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id/zip" > "$RUNNER_TEMP/artifact.zip"
+            unzip -q -o "$RUNNER_TEMP/artifact.zip" -d "$RUNNER_TEMP/audio"
           done
-          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${branch}/$([[ "$LEVEL" == N3 ]] && echo data/n3/wordlist.json || echo data/wordlist.json)" -o "$RUNNER_TEMP/source/wordlist.json"
-          python - "$RUNNER_TEMP/source/wordlist.json" "$RUNNER_TEMP/audio" "$LEVEL" "${{ inputs.unit }}" <<'PY'
+          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/agent/full-n3-audio-workflow/data/n3/wordlist.json" -o "$RUNNER_TEMP/source/wordlist.json"
+          python - "$RUNNER_TEMP/source/wordlist.json" "$RUNNER_TEMP/audio" <<'PY'
           import json,pathlib,sys
-          source,audio,level,unit=map(pathlib.Path,sys.argv[1:])
-          rows=json.loads(source.read_text()); wanted=[r for r in rows if str(r.get('unit'))==str(unit) or str(r.get('unit'))==f'第{unit}单元']
-          if not wanted: raise SystemExit(f'no rows for {level} unit {unit}')
-          out=audio/'concat.txt'; missing=[]
-          with out.open('w') as f:
-            for r in wanted:
+          source,audio=map(pathlib.Path,sys.argv[1:])
+          rows=[r for r in json.loads(source.read_text()) if str(r.get('unit'))=='1']
+          if not rows: raise SystemExit('unit 1 not found')
+          with (audio/'concat.txt').open('w') as f:
+            for r in rows:
               for suffix in ('word_x2','sentence_x2'):
                 p=audio/f"{r['id']}_{suffix}.mp3"
-                if not p.exists(): missing.append(str(p))
-                else: f.write(f"file '{p}'\n")
-          if missing: raise SystemExit(f'missing {len(missing)} files: {missing[:3]}')
-          print(f'{level} unit {unit}: {len(wanted)} cards')
+                if not p.exists(): raise SystemExit(f'missing {p}')
+                f.write(f"file '{p}'\n")
+          print(f'N3 unit 1: {len(rows)} cards')
           PY
-      - name: Build one unit MP3
-        env: {LEVEL: ${{ inputs.level }}, UNIT: ${{ inputs.unit }}}
+      - name: Build and validate N3 unit 1 MP3
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
-          ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i "$RUNNER_TEMP/audio/concat.txt" -c:a libmp3lame -b:a 96k -ar 24000 -ac 1 "$GITHUB_WORKSPACE/${LEVEL}-第${UNIT}单元-单词2遍例句2遍.mp3"
-          ffprobe -v error -show_entries format=duration -of default=nw=1 "$GITHUB_WORKSPACE/${LEVEL}-第${UNIT}单元-单词2遍例句2遍.mp3"
+          ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i "$RUNNER_TEMP/audio/concat.txt" -c:a libmp3lame -b:a 96k -ar 24000 -ac 1 "$GITHUB_WORKSPACE/N3-第1单元-单词2遍例句2遍.mp3"
+          ffprobe -v error -show_entries format=duration -of default=nw=1 "$GITHUB_WORKSPACE/N3-第1单元-单词2遍例句2遍.mp3"
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.level }}-unit-${{ inputs.unit }}-audio
-          path: "${{ inputs.level }}-第${{ inputs.unit }}单元-单词2遍例句2遍.mp3"
+          name: N3-unit-1-audio
+          path: N3-第1单元-单词2遍例句2遍.mp3
           retention-days: 30
