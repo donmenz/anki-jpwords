@@ -1,5 +1,5 @@
 name: Package One Japanese Audio Unit
-on:
+"on":
   workflow_dispatch:
     inputs:
       level:
