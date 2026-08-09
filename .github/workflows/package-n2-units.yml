@@ -1,0 +1,58 @@
+name: Package N2 Unit Audio
+on:
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download N2 audio shards and source list
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/audio" "$RUNNER_TEMP/source"
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/31292268759/artifacts" --jq '.artifacts[] | select(.expired == false and (.name | startswith("audio-shard-"))) | [.id,.name] | @tsv' | while IFS=$'\t' read -r id name; do
+            gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id/zip" > "$RUNNER_TEMP/artifact.zip"
+            unzip -q -o "$RUNNER_TEMP/artifact.zip" -d "$RUNNER_TEMP/audio"
+          done
+          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/main/data/wordlist.json" -o "$RUNNER_TEMP/source/wordlist.json"
+      - name: Build all unit MP3 files
+        env:
+          LEVEL: N2
+          UNIT_COUNT: "42"
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          mkdir -p "$RUNNER_TEMP/lists" "$GITHUB_WORKSPACE/N2"
+          python - "$RUNNER_TEMP/source/wordlist.json" "$RUNNER_TEMP/audio" "$RUNNER_TEMP/lists" "$UNIT_COUNT" <<'PY'
+          import json,pathlib,sys
+          source,audio,lists,unit_count=map(pathlib.Path,sys.argv[1:])
+          rows=json.loads(source.read_text())
+          for n in range(1,int(unit_count)+1):
+            wanted=[r for r in rows if str(r.get('unit'))==str(n) or str(r.get('unit'))==f'第{n}单元']
+            if not wanted: raise SystemExit(f'unit {n} not found')
+            out=lists/f'{n:02d}.txt'; missing=[]
+            with out.open('w') as f:
+              for r in wanted:
+                for suffix in ('word_x2','sentence_x2'):
+                  p=audio/f"{r['id']}_{suffix}.mp3"
+                  if not p.exists(): missing.append(str(p))
+                  else: f.write(f"file '{p}'\n")
+            if missing: raise SystemExit(f'unit {n}: missing {len(missing)} files; first={missing[:2]}')
+            print(f'unit {n}: {len(wanted)} cards')
+          PY
+          for n in $(seq 1 "$UNIT_COUNT"); do
+            ffmpeg -hide_banner -loglevel error -f concat -safe 0 -i "$RUNNER_TEMP/lists/$(printf '%02d' "$n").txt" -c copy "$GITHUB_WORKSPACE/$LEVEL/第${n}单元.mp3"
+            ffprobe -v error -show_entries format=duration -of default=nw=1 "$GITHUB_WORKSPACE/$LEVEL/第${n}单元.mp3"
+          done
+          (cd "$GITHUB_WORKSPACE" && zip -qr "$GITHUB_WORKSPACE/N2-全书-单元音频.zip" "$LEVEL")
+          shasum -a 256 "$GITHUB_WORKSPACE/N2-全书-单元音频.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: N2-全书-单元音频
+          path: N2-全书-单元音频.zip
+          retention-days: 30
